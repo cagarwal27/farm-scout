@@ -5,63 +5,73 @@
       "priority": 1,
       "area_acres": 3.2,
       "ndvi_drop": -0.24,
+      "severity": "high",
       "centroid": [-121.8732, 38.7200],
       "checklist": [
         "Inspect canopy for scorch or browning",
         "Check soil moisture at root zone",
         "Inspect irrigation emitters for blockage",
         "Capture 4 canopy photos (N/S/E/W)"
-      ]
+      ],
+      "finding": "Severe leaf scorch from sustained heat exposure. Recommend immediate irrigation adjustment."
     },
     {
       "zone_id": "B",
       "priority": 2,
       "area_acres": 2.1,
       "ndvi_drop": -0.19,
+      "severity": "high",
       "centroid": [-121.8680, 38.7168],
       "checklist": [
         "Inspect canopy for scorch or browning",
         "Check soil moisture at root zone",
         "Look for pest presence (mites, borers)",
         "Capture 4 canopy photos (N/S/E/W)"
-      ]
+      ],
+      "finding": "Significant canopy dieback detected. Check for irrigation system failure and soil compaction."
     },
     {
       "zone_id": "C",
       "priority": 3,
       "area_acres": 2.4,
       "ndvi_drop": -0.16,
+      "severity": "medium",
       "centroid": [-121.8752, 38.7148],
       "checklist": [
         "Check for leaf curling or wilting",
         "Inspect drip lines for leaks",
         "Note any discoloration patterns",
         "Capture 4 canopy photos (N/S/E/W)"
-      ]
+      ],
+      "finding": "Moderate wilting with possible irrigation deficit. Inspect drip lines for damage or blockage."
     },
     {
       "zone_id": "D",
       "priority": 4,
       "area_acres": 1.8,
       "ndvi_drop": -0.14,
+      "severity": "medium",
       "centroid": [-121.8704, 38.7225],
       "checklist": [
         "Check for leaf curling or wilting",
         "Look for pest presence (mites, borers)",
         "Capture 4 canopy photos (N/S/E/W)"
-      ]
+      ],
+      "finding": "Canopy stress with signs of early pest activity. Recommend targeted pest scouting."
     },
     {
       "zone_id": "E",
       "priority": 5,
       "area_acres": 1.9,
       "ndvi_drop": -0.13,
+      "severity": "low",
       "centroid": [-121.8658, 38.7200],
       "checklist": [
         "General canopy health assessment",
         "Check soil moisture at root zone",
         "Capture 4 canopy photos (N/S/E/W)"
-      ]
+      ],
+      "finding": "Minor leaf curling observed. Monitor over next 7 days, no immediate action required."
     }
   ],
   "summary": {

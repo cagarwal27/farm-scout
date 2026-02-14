@@ -1,0 +1,128 @@
+{
+  "location": {
+    "lat": 38.89,
+    "lon": -121.97
+  },
+  "period": {
+    "start": "2024-07-02",
+    "end": "2024-07-12"
+  },
+  "daily": [
+    {
+      "date": "2024-07-02",
+      "temp_max_f": 112.1,
+      "temp_min_f": 84.1,
+      "precipitation_in": 0.0,
+      "wind_gust_mph": 30.4,
+      "humidity_pct": 12
+    },
+    {
+      "date": "2024-07-03",
+      "temp_max_f": 112.9,
+      "temp_min_f": 86.3,
+      "precipitation_in": 0.0,
+      "wind_gust_mph": 30.9,
+      "humidity_pct": 11
+    },
+    {
+      "date": "2024-07-04",
+      "temp_max_f": 112.1,
+      "temp_min_f": 75.3,
+      "precipitation_in": 0.0,
+      "wind_gust_mph": 19.2,
+      "humidity_pct": 18
+    },
+    {
+      "date": "2024-07-05",
+      "temp_max_f": 116.8,
+      "temp_min_f": 73.9,
+      "precipitation_in": 0.0,
+      "wind_gust_mph": 17.4,
+      "humidity_pct": 21
+    },
+    {
+      "date": "2024-07-06",
+      "temp_max_f": 118.5,
+      "temp_min_f": 77.9,
+      "precipitation_in": 0.0,
+      "wind_gust_mph": 12.1,
+      "humidity_pct": 16
+    },
+    {
+      "date": "2024-07-07",
+      "temp_max_f": 116.4,
+      "temp_min_f": 75.7,
+      "precipitation_in": 0.0,
+      "wind_gust_mph": 16.6,
+      "humidity_pct": 26
+    },
+    {
+      "date": "2024-07-08",
+      "temp_max_f": 109.3,
+      "temp_min_f": 67.7,
+      "precipitation_in": 0.0,
+      "wind_gust_mph": 21.3,
+      "humidity_pct": 36
+    },
+    {
+      "date": "2024-07-09",
+      "temp_max_f": 106.9,
+      "temp_min_f": 66.5,
+      "precipitation_in": 0.0,
+      "wind_gust_mph": 19.7,
+      "humidity_pct": 40
+    },
+    {
+      "date": "2024-07-10",
+      "temp_max_f": 112.2,
+      "temp_min_f": 65.8,
+      "precipitation_in": 0.0,
+      "wind_gust_mph": 15.9,
+      "humidity_pct": 33
+    },
+    {
+      "date": "2024-07-11",
+      "temp_max_f": 115.4,
+      "temp_min_f": 75.1,
+      "precipitation_in": 0.0,
+      "wind_gust_mph": 19.5,
+      "humidity_pct": 23
+    },
+    {
+      "date": "2024-07-12",
+      "temp_max_f": 117.7,
+      "temp_min_f": 76.4,
+      "precipitation_in": 0.0,
+      "wind_gust_mph": 18.8,
+      "humidity_pct": 17
+    }
+  ],
+  "alerts": [
+    {
+      "type": "heat_spike",
+      "label": "11-day heat spike > 100\u00b0F",
+      "start": "2024-07-02",
+      "end": "2024-07-12",
+      "severity": "high"
+    },
+    {
+      "type": "high_wind",
+      "label": "Wind gusts > 30 mph",
+      "start": "2024-07-02",
+      "end": "2024-07-03",
+      "severity": "medium"
+    },
+    {
+      "type": "no_rainfall",
+      "label": "No rainfall for 11 days",
+      "start": "2024-07-02",
+      "end": "2024-07-12",
+      "severity": "medium"
+    }
+  ],
+  "correlation": {
+    "primary": "Heat stress",
+    "secondary": "Irrigation irregularity",
+    "confidence": "moderate"
+  }
+}

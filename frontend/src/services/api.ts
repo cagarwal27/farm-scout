@@ -39,16 +39,21 @@ export async function fetchWeather(): Promise<WeatherResponse> {
 }
 
 export async function fetchMissions(
-  hotspots: GeoJSON.FeatureCollection
+  hotspots: GeoJSON.FeatureCollection,
+  weatherData?: WeatherResponse | null
 ): Promise<MissionsResponse> {
   if (USE_MOCK) {
     const { default: data } = await import("../mocks/mockMissions.json");
     return data as MissionsResponse;
   }
+  const body: Record<string, unknown> = { hotspots };
+  if (weatherData) {
+    body.weather_context = weatherData;
+  }
   const res = await fetch(`${API_BASE}/api/missions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ hotspots }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`missions failed: ${res.status}`);
   return res.json() as Promise<MissionsResponse>;

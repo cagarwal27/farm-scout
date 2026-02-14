@@ -96,9 +96,9 @@ export function SidePanel({
         )}
 
         {/* Panel content — animated transitions */}
-        <div className={`flex-1 ${isIntro ? "" : "overflow-hidden"}`}>
+        <div className={`flex-1 min-h-0 ${isIntro ? "" : "overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"}`}>
           <AnimatePresence mode="wait">
-            <motion.div key={state.panel} {...panelAnim} className="h-full">
+            <motion.div key={state.panel} {...panelAnim}>
               {state.panel === "intro-problem" && <IntroProblem />}
               {state.panel === "intro-solution" && <IntroSolution />}
               {state.panel === "field-info" && <FieldInfo />}
@@ -165,8 +165,8 @@ function IntroProblem() {
       <p className="text-[10px] text-red-400/70 uppercase tracking-[0.2em] mb-4">
         The Problem
       </p>
-      <h2 className="text-[24px] font-bold leading-tight text-white/90 mb-4 whitespace-nowrap">
-        400 acres. Trees dying in silence.
+      <h2 className="text-[22px] font-bold leading-tight text-white/90 mb-4 whitespace-nowrap">
+        You can't scout what you can't see.
       </h2>
       <p className="text-[14px] text-white/40 leading-relaxed mb-3">
         Heat stress, irrigation failure, and pest damage are destroying crops
@@ -250,6 +250,14 @@ function AnalysisResults({
         {data.summary.clusters_found} stress zones found —{" "}
         {data.summary.total_affected_acres} acres affected
       </p>
+
+      {/* Real data source badge */}
+      <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-blue-500/[0.06] border border-blue-500/15">
+        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+        <p className="text-[9px] text-blue-400/70 font-mono tracking-wide">
+          Sentinel-2 L2A · 10m resolution · {data.field.date_start} vs {data.field.date_end}
+        </p>
+      </div>
 
       <div className="grid grid-cols-2 gap-2">
         <StatCard label="Stress Zones" value={data.summary.clusters_found} />
@@ -413,8 +421,7 @@ function MissionsPanel({
 
       {/* Compact mission rows — no checklists, no scroll needed */}
       {data.missions.map((m) => {
-        const severity: Severity =
-          m.ndvi_drop <= -0.10 ? "high" : m.ndvi_drop <= -0.08 ? "medium" : "low";
+        const severity: Severity = m.severity;
         const isSelected = selectedZone === m.zone_id;
         return (
           <div
@@ -437,19 +444,25 @@ function MissionsPanel({
             </div>
             <div className="flex items-center gap-3 text-[11px] font-mono text-white/40">
               <span>{m.area_acres} ac</span>
-              <span className={SEVERITY_COLOR[severity]}>
-                {Math.abs(Math.round(m.ndvi_drop * 100))}% decline
-              </span>
+              <span className="text-red-400/80">${m.yield_at_risk.toLocaleString()}</span>
             </div>
           </div>
         );
       })}
 
       {/* Summary bar */}
-      <div className="pt-2.5 mt-1 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-white/30 font-mono">
-        <span>{data.summary.total_zones} zones</span>
-        <span>~{data.summary.estimated_hours} hrs</span>
-        <span>{data.summary.crew_required} crew</span>
+      <div className="pt-2.5 mt-1 border-t border-white/[0.06]">
+        <div className="flex items-center justify-between text-[11px] text-white/30 font-mono">
+          <span>{data.summary.total_zones} zones</span>
+          <span>~{data.summary.estimated_hours} hrs</span>
+          <span>{data.summary.crew_required} crew</span>
+        </div>
+        <div className="mt-2 flex items-center justify-between px-2.5 py-2 rounded-lg bg-red-500/[0.06] border border-red-500/15">
+          <span className="text-[9px] text-red-400/60 uppercase tracking-widest">Yield at Risk</span>
+          <span className="text-sm font-mono font-bold text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.4)]">
+            ${data.summary.total_yield_at_risk.toLocaleString()}
+          </span>
+        </div>
       </div>
 
       {/* Route summary */}
@@ -476,18 +489,7 @@ function MissionsPanel({
   );
 }
 
-/** AI findings per zone — ties the whole story together */
-const ZONE_FINDINGS: Record<string, string> = {
-  A: "Severe leaf scorch from sustained heat exposure. Recommend immediate irrigation adjustment.",
-  B: "Canopy stress with early mite activity detected. Recommend targeted pest treatment.",
-  C: "Moderate wilting from irrigation deficit. Drip line repair needed in rows 34-38.",
-  D: "Minor leaf curling observed. Monitor over next 7 days, no immediate action required.",
-  E: "Mild canopy thinning consistent with heat stress. Within acceptable recovery range.",
-  F: "Isolated branch dieback in upper canopy. Likely sunburn damage from recent heat spike.",
-  G: "Slight yellowing at leaf margins. Early sign of water stress — check emitter flow rates.",
-};
-
-type InspectionPhase = "idle" | "checking" | "finding" | "complete";
+type BriefingPhase = "scanning" | "ready";
 
 function FieldTicket({
   missions,
@@ -500,36 +502,17 @@ function FieldTicket({
   onNextZone: () => void;
   onSkipToComplete: () => void;
 }) {
-  const [phase, setPhase] = useState<InspectionPhase>("idle");
-  const [checkedCount, setCheckedCount] = useState(0);
+  const [phase, setPhase] = useState<BriefingPhase>("scanning");
 
   const isAllDone = zoneIndex >= missions.length;
   const m = isAllDone ? null : missions[zoneIndex];
 
-  // Reset when zone changes
+  // Auto-transition: scanning → ready after brief delay
   useEffect(() => {
-    setPhase("idle");
-    setCheckedCount(0);
+    setPhase("scanning");
+    const timer = setTimeout(() => setPhase("ready"), 800);
+    return () => clearTimeout(timer);
   }, [zoneIndex]);
-
-  // Auto-animation: check items one by one
-  useEffect(() => {
-    if (phase !== "checking" || !m) return;
-    if (checkedCount < m.checklist.length) {
-      const timer = setTimeout(() => setCheckedCount((c) => c + 1), 300);
-      return () => clearTimeout(timer);
-    }
-    // All items checked → finding
-    const timer = setTimeout(() => setPhase("finding"), 500);
-    return () => clearTimeout(timer);
-  }, [phase, checkedCount, m]);
-
-  // Finding → complete
-  useEffect(() => {
-    if (phase !== "finding") return;
-    const timer = setTimeout(() => setPhase("complete"), 1000);
-    return () => clearTimeout(timer);
-  }, [phase]);
 
   // All zones completed
   if (isAllDone) {
@@ -564,10 +547,9 @@ function FieldTicket({
 
   if (!m) return null;
 
-  const severity: Severity =
-    m.ndvi_drop <= -0.10 ? "high" : m.ndvi_drop <= -0.08 ? "medium" : "low";
+  const severity: Severity = m.severity;
   const isLastZone = zoneIndex === missions.length - 1;
-  const finding = ZONE_FINDINGS[m.zone_id] || "Assessment complete.";
+  const dropPct = Math.abs(Math.round(m.ndvi_drop * 100));
 
   return (
     <div className="space-y-3">
@@ -586,150 +568,141 @@ function FieldTicket({
           />
         ))}
       </div>
-      <p className="text-[10px] text-white/30 uppercase tracking-widest">
-        Zone {m.zone_id} — {zoneIndex + 1} of {missions.length}
-      </p>
 
-      <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 space-y-3">
-        {/* Zone header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <span
-              className={`text-lg font-bold ${SEVERITY_COLOR[severity]} ${SEVERITY_GLOW[severity]}`}
-            >
-              Zone {m.zone_id}
-            </span>
-            <p className="text-[11px] text-white/30 font-mono">
-              {m.area_acres} ac · {Math.abs(Math.round(m.ndvi_drop * 100))}% health decline
-            </p>
+      {/* Scanning state */}
+      {phase === "scanning" && (
+        <div className="flex flex-col items-center justify-center py-10 gap-3">
+          <div className="relative">
+            <div className="w-10 h-10 rounded-full border-2 border-blue-500/40 border-t-blue-400 animate-spin" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-3 h-3 rounded-full bg-blue-400/60 animate-pulse" />
+            </div>
           </div>
-          <span
-            className={`text-[10px] px-2 py-0.5 rounded-md border ${SEVERITY_BG[severity]}`}
-          >
-            P{m.priority}
-          </span>
+          <p className="text-[11px] text-white/40 tracking-wide">
+            Analyzing Zone {m.zone_id}...
+          </p>
         </div>
+      )}
 
-        <div className="border-t border-white/[0.06]" />
-
-        {/* Checklist — auto-animated */}
-        <div className="space-y-1.5">
-          {m.checklist.map((item, i) => {
-            const isChecked = i < checkedCount;
-            return (
-              <div
-                key={i}
-                className={`flex items-center gap-2 text-[12px] py-1 transition-all duration-300 ${
-                  isChecked
-                    ? "text-white/30"
-                    : phase === "idle"
-                      ? "text-white/40"
-                      : "text-white/60"
-                }`}
-              >
-                <div
-                  className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-all duration-300 ${
-                    isChecked
-                      ? "bg-emerald-500/20 border-emerald-500/40"
-                      : "border-white/10"
-                  }`}
+      {/* Zone briefing card */}
+      {phase === "ready" && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+          className="space-y-3"
+        >
+          {/* Zone header */}
+          <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span
+                  className={`text-xl font-bold ${SEVERITY_COLOR[severity]} ${SEVERITY_GLOW[severity]}`}
                 >
-                  {isChecked && (
-                    <svg
-                      className="w-2.5 h-2.5 text-emerald-400"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={3}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  )}
-                </div>
-                <span className={isChecked ? "line-through" : ""}>{item}</span>
+                  Zone {m.zone_id}
+                </span>
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded-md border font-medium ${SEVERITY_BG[severity]}`}
+                >
+                  {severity.toUpperCase()}
+                </span>
               </div>
-            );
-          })}
-        </div>
+              <span className="text-[10px] text-white/25 font-mono">
+                P{m.priority}
+              </span>
+            </div>
 
-        {/* AI Finding — fades in after checklist completes */}
-        {(phase === "finding" || phase === "complete") && (
+            {/* Key metrics */}
+            <div className="flex gap-2">
+              <div className="flex-1 bg-white/[0.03] rounded-lg p-2.5 border border-white/[0.05]">
+                <p className="text-[9px] text-white/30 uppercase">Area</p>
+                <p className="text-sm font-mono font-bold text-white/80 mt-0.5">
+                  {m.area_acres} ac
+                </p>
+              </div>
+              <div className="flex-1 bg-white/[0.03] rounded-lg p-2.5 border border-white/[0.05] border-l-2 border-l-red-500/40">
+                <p className="text-[9px] text-white/30 uppercase">Decline</p>
+                <p className="text-sm font-mono font-bold text-red-400 mt-0.5 drop-shadow-[0_0_6px_rgba(248,113,113,0.4)]">
+                  {dropPct}%
+                </p>
+              </div>
+              <div className="flex-1 bg-white/[0.03] rounded-lg p-2.5 border border-white/[0.05] border-l-2 border-l-amber-500/40">
+                <p className="text-[9px] text-white/30 uppercase">At Risk</p>
+                <p className="text-sm font-mono font-bold text-amber-400 mt-0.5 drop-shadow-[0_0_6px_rgba(251,191,36,0.4)]">
+                  ${m.yield_at_risk.toLocaleString()}
+                </p>
+              </div>
+            </div>
+
+            {/* Decline bar */}
+            <div>
+              <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(dropPct * 5, 100)}%` }}
+                  transition={{ duration: 0.8, delay: 0.2 }}
+                  className={`h-full rounded-full ${
+                    severity === "high"
+                      ? "bg-gradient-to-r from-red-500 to-red-400 shadow-[0_0_8px_rgba(239,68,68,0.4)]"
+                      : severity === "medium"
+                        ? "bg-gradient-to-r from-amber-500 to-amber-400"
+                        : "bg-gradient-to-r from-yellow-500 to-yellow-400"
+                  }`}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* AI Diagnosis */}
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="bg-blue-500/[0.07] border border-blue-500/20 rounded-lg p-3"
+            transition={{ duration: 0.4, delay: 0.3 }}
+            className="bg-blue-500/[0.06] border border-blue-500/20 rounded-xl p-4"
           >
-            <p className="text-[10px] text-blue-400/70 uppercase tracking-widest mb-1">
-              AI Analysis
+            <p className="text-[9px] text-blue-400/60 uppercase tracking-[0.15em] mb-1.5">
+              AI Diagnosis
             </p>
-            <p className="text-[12px] text-blue-300/90 leading-relaxed">
-              {finding}
+            <p className="text-[12px] text-blue-200/90 leading-relaxed">
+              {m.finding}
             </p>
           </motion.div>
-        )}
 
-        {/* Run Inspection button — idle state */}
-        {phase === "idle" && (
-          <button
-            onClick={() => {
-              setPhase("checking");
-              setCheckedCount(0);
-            }}
-            className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white text-[13px] font-medium rounded-lg transition-all shadow-[0_0_16px_rgba(59,130,246,0.2)]"
-          >
-            Run Inspection
-          </button>
-        )}
-
-        {/* In-progress spinner */}
-        {phase === "checking" && (
-          <div className="flex items-center justify-center gap-2 py-2 text-[11px] text-white/40">
-            <svg
-              className="animate-spin h-3 w-3"
-              viewBox="0 0 24 24"
-              fill="none"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-              />
-            </svg>
-            Inspecting...
-          </div>
-        )}
-
-        {/* Next Zone button — appears when complete */}
-        {phase === "complete" && (
+          {/* Recommended Action */}
           <motion.div
-            initial={{ opacity: 0, y: 6 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.4, delay: 0.5 }}
+            className="bg-emerald-500/[0.06] border border-emerald-500/20 rounded-xl p-4"
+          >
+            <p className="text-[9px] text-emerald-400/60 uppercase tracking-[0.15em] mb-1.5">
+              Recommended Action
+            </p>
+            <p className="text-[12px] text-emerald-200/90 leading-relaxed">
+              {m.action}
+            </p>
+          </motion.div>
+
+          {/* Zone Complete → Next */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, delay: 0.7 }}
           >
             <button
               onClick={onNextZone}
-              className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-[13px] font-medium rounded-lg transition-all shadow-[0_0_16px_rgba(16,185,129,0.2)]"
+              className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-[13px] font-medium rounded-xl transition-all shadow-[0_0_16px_rgba(16,185,129,0.2)] flex items-center justify-center gap-2"
             >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
               {isLastZone
                 ? "Complete All Zones"
-                : `Next → Zone ${missions[zoneIndex + 1].zone_id}`}
+                : `Zone Complete → ${missions[zoneIndex + 1].zone_id}`}
             </button>
           </motion.div>
-        )}
-      </div>
+        </motion.div>
+      )}
     </div>
   );
 }

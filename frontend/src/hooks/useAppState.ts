@@ -84,7 +84,7 @@ export function useAppState() {
     if (!state.analyzeData) return;
     setState((s) => ({ ...s, loading: true }));
     try {
-      const data = await fetchMissions(state.analyzeData.hotspots);
+      const data = await fetchMissions(state.analyzeData.hotspots, state.weatherData);
       setState((s) => ({ ...s, missionsData: data, panel: "missions", loading: false }));
     } catch {
       const { default: fallback } = await import("../mocks/mockMissions.json");
@@ -95,7 +95,7 @@ export function useAppState() {
         loading: false,
       }));
     }
-  }, [state.analyzeData]);
+  }, [state.analyzeData, state.weatherData]);
 
   const setRouteData = useCallback((routeData: RouteData) => {
     setState((s) => ({ ...s, routeData, loading: false }));

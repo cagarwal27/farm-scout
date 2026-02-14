@@ -2,9 +2,9 @@
   "field": {
     "location": "Yolo County, CA",
     "crop": "Almond",
-    "area_acres": 412.5,
-    "date_start": "2024-07-01",
-    "date_end": "2024-07-14"
+    "area_acres": 932.6,
+    "date_start": "2024-07-02",
+    "date_end": "2024-07-12"
   },
   "summary": {
     "clusters_found": 5,

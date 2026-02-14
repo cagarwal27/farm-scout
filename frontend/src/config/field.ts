@@ -10,26 +10,26 @@
  *   - The pre-analysis FieldInfo display
  */
 export const FIELD = {
-  name: "Yolo County, CA",
-  crop: "Almond",
+  name: "Dunnigan, Yolo County, CA",
+  crop: "Mixed Orchard",
   area_acres: 932.6,
   date_start: "2024-07-02",
   date_end: "2024-07-12",
 
-  /** Map center [lon, lat] — Knights Landing almond orchards */
-  center: [-121.71, 38.81] as [number, number],
-  zoom: 15,
+  /** Map center [lon, lat] — Dunnigan orchards */
+  center: [-121.97, 38.89] as [number, number],
+  zoom: 13,
 
   /** AOI polygon sent to POST /api/analyze — matches backend precache AOI */
   aoi: {
     type: "Polygon" as const,
     coordinates: [
       [
-        [-121.72, 38.82],
-        [-121.70, 38.82],
-        [-121.70, 38.80],
-        [-121.72, 38.80],
-        [-121.72, 38.82],
+        [-121.98, 38.90],
+        [-121.96, 38.90],
+        [-121.96, 38.88],
+        [-121.98, 38.88],
+        [-121.98, 38.90],
       ],
     ],
   },

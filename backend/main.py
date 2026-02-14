@@ -14,6 +14,9 @@ import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -95,6 +98,7 @@ class AnalyzeRequest(BaseModel):
 
 class MissionsRequest(BaseModel):
     hotspots: dict
+    weather_context: dict | None = None
 
     @field_validator("hotspots")
     @classmethod
@@ -213,6 +217,6 @@ def create_missions(req: MissionsRequest):
     Real logic: sorts by severity * area, assigns checklists, computes crew needs.
     """
     try:
-        return generate_missions(req.hotspots)
+        return generate_missions(req.hotspots, req.weather_context)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Mission generation failed: {e}")

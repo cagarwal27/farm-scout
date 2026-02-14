@@ -181,7 +181,7 @@ export function useMapTransition(
       setTimeout(() => {
         map.flyTo({
           center: FIELD.center,
-          zoom: FIELD.zoom + 1,
+          zoom: 14.8,
           pitch: 45,
           bearing: -20,
           duration: 3000,
@@ -446,7 +446,7 @@ export function useMapTransition(
 
   /** Zoom into a specific zone centroid — used during field ticket */
   const flyToZone = useCallback(
-    (centroid: [number, number]) => {
+    (centroid: [number, number], zoneId?: string) => {
       const map = mapRef.current;
       if (!map) return;
       map.flyTo({
@@ -456,6 +456,28 @@ export function useMapTransition(
         bearing: -15,
         duration: 1500,
       });
+
+      // Highlight active zone, dim others
+      if (zoneId && sourcesAdded.current) {
+        map.setPaintProperty("hotspot-fill", "fill-opacity", [
+          "case",
+          ["==", ["get", "cluster_id"], zoneId],
+          0.7,
+          0.1,
+        ]);
+        map.setPaintProperty("hotspot-outline", "line-opacity", [
+          "case",
+          ["==", ["get", "cluster_id"], zoneId],
+          1,
+          0.15,
+        ]);
+        map.setPaintProperty("hotspot-outline", "line-width", [
+          "case",
+          ["==", ["get", "cluster_id"], zoneId],
+          3,
+          1,
+        ]);
+      }
     },
     [mapRef]
   );
@@ -471,6 +493,13 @@ export function useMapTransition(
       bearing: -10,
       duration: 1500,
     });
+
+    // Restore all zones to equal visibility
+    if (sourcesAdded.current) {
+      map.setPaintProperty("hotspot-fill", "fill-opacity", 0.5);
+      map.setPaintProperty("hotspot-outline", "line-opacity", 0.9);
+      map.setPaintProperty("hotspot-outline", "line-width", 2);
+    }
   }, [mapRef]);
 
   return { runTransition, showRoute, resetMap, flyToZone, flyToOverview };

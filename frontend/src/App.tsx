@@ -69,7 +69,7 @@ export default function App() {
     if (!state.missionsData) return;
     showTicket();
     const firstZone = state.missionsData.missions[0];
-    if (firstZone) flyToZone(firstZone.centroid);
+    if (firstZone) flyToZone(firstZone.centroid, firstZone.zone_id);
   }, [state.missionsData, showTicket, flyToZone]);
 
   /** Skip to all-complete — zoom back out to overview */
@@ -85,7 +85,8 @@ export default function App() {
     if (state.ticketZoneIndex >= missions.length) {
       flyToOverview();
     } else if (state.ticketZoneIndex > 0) {
-      flyToZone(missions[state.ticketZoneIndex].centroid);
+      const zone = missions[state.ticketZoneIndex];
+      flyToZone(zone.centroid, zone.zone_id);
     }
   }, [state.panel, state.ticketZoneIndex, state.missionsData, flyToZone, flyToOverview]);
 

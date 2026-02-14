@@ -55,13 +55,18 @@ export interface MissionsResponse {
     priority: number;
     area_acres: number;
     ndvi_drop: number;
+    severity: "high" | "medium" | "low";
     centroid: [number, number];
     checklist: string[];
+    finding: string;
+    action: string;
+    yield_at_risk: number;
   }>;
   summary: {
     total_zones: number;
     estimated_hours: number;
     crew_required: number;
+    total_yield_at_risk: number;
   };
 }
 
