@@ -1,0 +1,90 @@
+{
+  "location": {
+    "lat": 36.84658088060291,
+    "lon": -119.58643108606339
+  },
+  "period": {
+    "start": "2025-12-24",
+    "end": "2025-12-31"
+  },
+  "daily": [
+    {
+      "date": "2025-12-24",
+      "temp_max_f": 63.0,
+      "temp_min_f": 52.5,
+      "precipitation_in": 1.69,
+      "wind_gust_mph": 31.5,
+      "humidity_pct": 79
+    },
+    {
+      "date": "2025-12-25",
+      "temp_max_f": 59.2,
+      "temp_min_f": 52.5,
+      "precipitation_in": 1.03,
+      "wind_gust_mph": 32.4,
+      "humidity_pct": 73
+    },
+    {
+      "date": "2025-12-26",
+      "temp_max_f": 59.2,
+      "temp_min_f": 46.8,
+      "precipitation_in": 0.21,
+      "wind_gust_mph": 23.0,
+      "humidity_pct": 82
+    },
+    {
+      "date": "2025-12-27",
+      "temp_max_f": 54.2,
+      "temp_min_f": 40.9,
+      "precipitation_in": 0.0,
+      "wind_gust_mph": 14.3,
+      "humidity_pct": 85
+    },
+    {
+      "date": "2025-12-28",
+      "temp_max_f": 51.2,
+      "temp_min_f": 41.5,
+      "precipitation_in": 0.0,
+      "wind_gust_mph": 9.6,
+      "humidity_pct": 91
+    },
+    {
+      "date": "2025-12-29",
+      "temp_max_f": 49.7,
+      "temp_min_f": 38.4,
+      "precipitation_in": 0.0,
+      "wind_gust_mph": 13.0,
+      "humidity_pct": 89
+    },
+    {
+      "date": "2025-12-30",
+      "temp_max_f": 52.1,
+      "temp_min_f": 38.9,
+      "precipitation_in": 0.01,
+      "wind_gust_mph": 12.3,
+      "humidity_pct": 82
+    },
+    {
+      "date": "2025-12-31",
+      "temp_max_f": 51.3,
+      "temp_min_f": 43.1,
+      "precipitation_in": 0.29,
+      "wind_gust_mph": 11.0,
+      "humidity_pct": 96
+    }
+  ],
+  "alerts": [
+    {
+      "type": "high_wind",
+      "label": "Wind gusts > 30 mph",
+      "start": "2025-12-24",
+      "end": "2025-12-25",
+      "severity": "medium"
+    }
+  ],
+  "correlation": {
+    "primary": "Unknown stress factor",
+    "secondary": "Wind damage",
+    "confidence": "moderate"
+  }
+}
