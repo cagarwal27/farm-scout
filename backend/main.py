@@ -1,11 +1,12 @@
 """
 FarmSense Backend — FastAPI server.
-Serves 3 endpoints matching the sacred frontend contracts + health check.
+Serves 3 endpoints matching the sacred frontend contracts + health check,
+plus field monitoring endpoints for auto-refresh.
 
-Run: uvicorn main:app --reload --port 8000
+Run: uvicorn main:app --reload --port 8000 --timeout-keep-alive 120
 
 Environment variables:
-  DEMO_MODE=true   — always serve best-looking cached results (default: true)
+  DEMO_MODE=true   — always serve best-looking cached results (default: false)
 """
 
 import json
@@ -21,15 +22,22 @@ from pydantic import BaseModel, field_validator
 
 from weather import fetch_weather
 from missions import generate_missions
+from pipeline import run_satellite_pipeline
+from monitor import FieldMonitor
 
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
 CACHE_DIR = Path(__file__).parent / "cache"
-DEMO_MODE = os.environ.get("DEMO_MODE", "true").lower() == "true"
+DEMO_MODE = os.environ.get("DEMO_MODE", "false").lower() == "true"
 
 # ---------------------------------------------------------------------------
-# Startup — verify cache exists
+# Field monitor instance
+# ---------------------------------------------------------------------------
+monitor = FieldMonitor(check_interval_hours=6)
+
+# ---------------------------------------------------------------------------
+# Startup
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -39,14 +47,17 @@ async def lifespan(app: FastAPI):
     print(f"[startup] DEMO_MODE={DEMO_MODE}")
     print(f"[startup] Analyze cache: {'OK' if analyze_cache.exists() else 'MISSING'}")
     print(f"[startup] Weather cache: {'OK' if weather_cache.exists() else 'MISSING'}")
-    if not analyze_cache.exists():
-        print("[startup] WARNING: No analyze cache — /api/analyze will fail without satellite pipeline")
+    print(f"[startup] Monitored fields: {len(monitor.saved_fields)}")
+    if not DEMO_MODE:
+        monitor.start()
+        print("[startup] Field monitor started")
     yield
+    monitor.stop()
 
 # ---------------------------------------------------------------------------
 # App setup
 # ---------------------------------------------------------------------------
-app = FastAPI(title="FarmSense API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="FarmSense API", version="2.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -85,6 +96,8 @@ class AnalyzeRequest(BaseModel):
     aoi: AOIGeometry
     date_start: str
     date_end: str
+    location_name: str = ""
+    crop_type: str = ""
 
     @field_validator("date_start", "date_end")
     @classmethod
@@ -104,6 +117,11 @@ class MissionsRequest(BaseModel):
         if "features" not in v:
             raise ValueError("hotspots must contain a 'features' array")
         return v
+
+class SaveFieldRequest(BaseModel):
+    aoi: AOIGeometry
+    location_name: str = ""
+    crop_type: str = ""
 
 # ---------------------------------------------------------------------------
 # Demo AOI detection
@@ -141,7 +159,7 @@ def _find_cached_aoi(aoi: AOIGeometry) -> Path | None:
     return None
 
 # ---------------------------------------------------------------------------
-# Endpoints
+# Core endpoints
 # ---------------------------------------------------------------------------
 
 @app.get("/api/health")
@@ -152,6 +170,8 @@ def health():
     return {
         "status": "ok",
         "demo_mode": DEMO_MODE,
+        "live_pipeline": not DEMO_MODE,
+        "monitored_fields": len(monitor.saved_fields),
         "cache": {
             "analyze": analyze_ok,
             "weather": weather_ok,
@@ -164,6 +184,7 @@ def analyze(req: AnalyzeRequest):
     """
     Analyze field health — returns NDVI hotspots for the given AOI and date range.
     In demo mode: returns pre-cached results.
+    In live mode: runs the satellite pipeline on-demand.
     """
     # Try to find a matching cached AOI
     cache_file = _find_cached_aoi(req.aoi)
@@ -178,6 +199,26 @@ def analyze(req: AnalyzeRequest):
         data["field"]["date_end"] = req.date_end
         data["source"] = "cached"
         return data
+
+    # Live mode: run the satellite pipeline
+    if not DEMO_MODE:
+        try:
+            result = run_satellite_pipeline(
+                aoi_polygon=req.aoi.model_dump(),
+                date_start=req.date_start,
+                date_end=req.date_end,
+                location_name=req.location_name,
+                crop_type=req.crop_type,
+            )
+            result["source"] = "live"
+            return result
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e))
+        except Exception as e:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Satellite pipeline error: {e}",
+            )
 
     raise HTTPException(
         status_code=503,
@@ -216,3 +257,46 @@ def create_missions(req: MissionsRequest):
         return generate_missions(req.hotspots)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Mission generation failed: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Field monitoring endpoints
+# ---------------------------------------------------------------------------
+
+@app.post("/api/fields")
+def save_field(req: SaveFieldRequest):
+    """Save a field for background monitoring."""
+    field_id = monitor.add_field(
+        aoi_polygon=req.aoi.model_dump(),
+        location_name=req.location_name,
+        crop_type=req.crop_type,
+    )
+    return {"field_id": field_id, "status": "saved"}
+
+
+@app.get("/api/fields")
+def list_fields():
+    """List all monitored fields."""
+    return {"fields": monitor.list_fields()}
+
+
+@app.get("/api/fields/{field_id}/latest")
+def get_field_latest(field_id: str):
+    """Get the most recent analysis for a monitored field."""
+    result = monitor.get_latest(field_id)
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No analysis available for field {field_id}. "
+            "The monitor may not have run yet.",
+        )
+    result["source"] = "monitored"
+    return result
+
+
+@app.delete("/api/fields/{field_id}")
+def delete_field(field_id: str):
+    """Stop monitoring a field."""
+    if not monitor.remove_field(field_id):
+        raise HTTPException(status_code=404, detail=f"Field {field_id} not found")
+    return {"status": "removed", "field_id": field_id}

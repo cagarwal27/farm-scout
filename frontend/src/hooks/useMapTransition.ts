@@ -1,7 +1,7 @@
 import { useCallback, useRef } from "react";
 import type maplibregl from "maplibre-gl";
 import type { AnalyzeResponse, RouteData } from "../types/api";
-import { FIELD } from "../config/field";
+import type { FieldConfig } from "../config/field";
 
 /** Creates a pulsing dot image for cluster centroids */
 function createPulsingDot(map: maplibregl.Map, size = 100) {
@@ -51,6 +51,7 @@ function createPulsingDot(map: maplibregl.Map, size = 100) {
 
 export function useMapTransition(
   mapRef: React.RefObject<maplibregl.Map | null>,
+  fieldConfig: FieldConfig,
   onZoneClick?: (zoneId: string) => void
 ) {
   const sourcesAdded = useRef(false);
@@ -180,8 +181,8 @@ export function useMapTransition(
       // 800ms — camera sweep
       setTimeout(() => {
         map.flyTo({
-          center: FIELD.center,
-          zoom: FIELD.zoom + 1,
+          center: fieldConfig.center,
+          zoom: fieldConfig.zoom + 1,
           pitch: 45,
           bearing: -20,
           duration: 3000,
@@ -203,7 +204,7 @@ export function useMapTransition(
         map.setPaintProperty("centroid-dots", "icon-opacity", 1);
       }, 2000);
     },
-    [mapRef, prepareLayers]
+    [mapRef, prepareLayers, fieldConfig]
   );
 
   /** Draw route line + numbered zone markers on the map */
@@ -379,7 +380,7 @@ export function useMapTransition(
 
       // Camera pulls back to reveal full route
       map.flyTo({
-        center: FIELD.center,
+        center: fieldConfig.center,
         zoom: 14.5,
         pitch: 30,
         bearing: -10,
@@ -406,7 +407,7 @@ export function useMapTransition(
         map.setPaintProperty("zone-marker-label", "text-opacity", 1);
       }, 800);
     },
-    [mapRef]
+    [mapRef, fieldConfig]
   );
 
   /** Reset map to initial state */
@@ -416,7 +417,7 @@ export function useMapTransition(
 
     map.setPaintProperty("satellite", "raster-brightness-max", 0.5);
     map.flyTo({
-      center: FIELD.center,
+      center: fieldConfig.center,
       zoom: 14,
       pitch: 0,
       bearing: 0,
@@ -442,7 +443,7 @@ export function useMapTransition(
       map.setPaintProperty("zone-marker-bg", "circle-stroke-opacity", 0);
       map.setPaintProperty("zone-marker-label", "text-opacity", 0);
     }
-  }, [mapRef]);
+  }, [mapRef, fieldConfig]);
 
   /** Zoom into a specific zone centroid — used during field ticket */
   const flyToZone = useCallback(
@@ -465,13 +466,13 @@ export function useMapTransition(
     const map = mapRef.current;
     if (!map) return;
     map.flyTo({
-      center: FIELD.center,
+      center: fieldConfig.center,
       zoom: 14.5,
       pitch: 30,
       bearing: -10,
       duration: 1500,
     });
-  }, [mapRef]);
+  }, [mapRef, fieldConfig]);
 
   return { runTransition, showRoute, resetMap, flyToZone, flyToOverview };
 }

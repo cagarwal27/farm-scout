@@ -7,10 +7,13 @@ import type {
   RouteData,
 } from "../types/api";
 import { analyzeField, fetchWeather, fetchMissions } from "../services/api";
+import { DEFAULT_FIELD, type FieldConfig } from "../config/field";
 
 export interface AppState {
   panel: PanelState;
   loading: boolean;
+  error: string | null;
+  fieldConfig: FieldConfig;
   analyzeData: AnalyzeResponse | null;
   weatherData: WeatherResponse | null;
   missionsData: MissionsResponse | null;
@@ -23,6 +26,8 @@ export function useAppState() {
   const [state, setState] = useState<AppState>({
     panel: "intro-problem",
     loading: false,
+    error: null,
+    fieldConfig: DEFAULT_FIELD,
     analyzeData: null,
     weatherData: null,
     missionsData: null,
@@ -39,25 +44,34 @@ export function useAppState() {
   const advanceIntro = useCallback(() => {
     setState((s) => {
       if (s.panel === "intro-problem") return { ...s, panel: "intro-solution" };
-      if (s.panel === "intro-solution") return { ...s, panel: "field-info" };
+      if (s.panel === "intro-solution") return { ...s, panel: "field-select" };
       return s;
     });
   }, []);
 
-  /** Fetch analysis data — stores it but does NOT switch panel (spinner stays) */
-  const fetchAnalysis = useCallback(async (): Promise<AnalyzeResponse> => {
-    setState((s) => ({ ...s, loading: true }));
-    try {
-      const data = await analyzeField();
-      setState((s) => ({ ...s, analyzeData: data }));
-      return data;
-    } catch {
-      const { default: fallback } = await import("../mocks/mockAnalyze.json");
-      const data = fallback as AnalyzeResponse;
-      setState((s) => ({ ...s, analyzeData: data }));
-      return data;
-    }
+  /** Set the field configuration (from user drawing or saved field) */
+  const setFieldConfig = useCallback((config: FieldConfig) => {
+    setState((s) => ({ ...s, fieldConfig: config }));
   }, []);
+
+  /** Confirm field selection and advance to field-info */
+  const confirmFieldSelection = useCallback(() => {
+    setState((s) => ({ ...s, panel: "field-info", error: null }));
+  }, []);
+
+  /** Fetch analysis data — stores it but does NOT switch panel (spinner stays) */
+  const fetchAnalysis = useCallback(async (): Promise<AnalyzeResponse | null> => {
+    setState((s) => ({ ...s, loading: true, error: null }));
+    try {
+      const data = await analyzeField(state.fieldConfig);
+      setState((s) => ({ ...s, analyzeData: data }));
+      return data;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Analysis failed";
+      setState((s) => ({ ...s, loading: false, error: message }));
+      return null;
+    }
+  }, [state.fieldConfig]);
 
   /** Reveal analysis results — switches panel and clears spinner */
   const revealAnalysis = useCallback(() => {
@@ -67,7 +81,7 @@ export function useAppState() {
   const runWeather = useCallback(async () => {
     setState((s) => ({ ...s, loading: true }));
     try {
-      const data = await fetchWeather();
+      const data = await fetchWeather(state.fieldConfig);
       setState((s) => ({ ...s, weatherData: data, panel: "weather", loading: false }));
     } catch {
       const { default: fallback } = await import("../mocks/mockWeather.json");
@@ -78,7 +92,7 @@ export function useAppState() {
         loading: false,
       }));
     }
-  }, []);
+  }, [state.fieldConfig]);
 
   const runMissions = useCallback(async () => {
     if (!state.analyzeData) return;
@@ -121,6 +135,8 @@ export function useAppState() {
     setState({
       panel: "intro-problem",
       loading: false,
+      error: null,
+      fieldConfig: DEFAULT_FIELD,
       analyzeData: null,
       weatherData: null,
       missionsData: null,
@@ -135,6 +151,8 @@ export function useAppState() {
     fetchAnalysis,
     selectZone,
     advanceIntro,
+    setFieldConfig,
+    confirmFieldSelection,
     revealAnalysis,
     runWeather,
     runMissions,

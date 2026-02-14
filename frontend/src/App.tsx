@@ -1,14 +1,21 @@
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { MapView, type MapHandle } from "./components/MapView";
 import { SidePanel } from "./components/SidePanel";
 import { useAppState } from "./hooks/useAppState";
 import { useMapTransition } from "./hooks/useMapTransition";
 import { useRoute } from "./hooks/useRoute";
+import { saveField, loadFieldLatest } from "./services/api";
+import type { FieldConfig } from "./config/field";
 
 export default function App() {
   const mapHandle = useRef<MapHandle>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+
+  // Draw mode state
+  const [drawnAoi, setDrawnAoi] = useState<{ type: "Polygon"; coordinates: number[][][] } | null>(null);
+  const [drawnCenter, setDrawnCenter] = useState<[number, number] | null>(null);
+  const [drawActive, setDrawActive] = useState(false);
 
   const getMapRef = useCallback(() => {
     if (!mapRef.current && mapHandle.current) {
@@ -22,6 +29,8 @@ export default function App() {
     advanceIntro,
     fetchAnalysis,
     revealAnalysis,
+    setFieldConfig,
+    confirmFieldSelection,
     runWeather,
     runMissions,
     setRouteData,
@@ -32,8 +41,80 @@ export default function App() {
   } = useAppState();
 
   const { runTransition, showRoute, flyToZone, flyToOverview } =
-    useMapTransition(mapRef, selectZone);
+    useMapTransition(mapRef, state.fieldConfig, selectZone);
   const { buildRoute } = useRoute();
+
+  // Draw mode is active when user clicks "Draw Area" in field-select panel
+  const drawMode = state.panel === "field-select" && drawActive;
+
+  const handleAoiDrawn = useCallback(
+    (aoi: { type: "Polygon"; coordinates: number[][][] }, center: [number, number]) => {
+      setDrawnAoi(aoi);
+      setDrawnCenter(center);
+      setDrawActive(false);
+    },
+    []
+  );
+
+  const handleActivateDraw = useCallback(() => {
+    setDrawActive(true);
+  }, []);
+
+  const handleFieldConfirm = useCallback(
+    async (config: FieldConfig, monitor: boolean) => {
+      setFieldConfig(config);
+      confirmFieldSelection();
+      setDrawnAoi(null);
+      setDrawnCenter(null);
+      setDrawActive(false);
+
+      // Save for monitoring if requested
+      if (monitor) {
+        try {
+          await saveField(config);
+        } catch {
+          // Non-critical — don't block the flow
+        }
+      }
+    },
+    [setFieldConfig, confirmFieldSelection]
+  );
+
+  const handleLoadSaved = useCallback(
+    async (fieldId: string) => {
+      try {
+        const data = await loadFieldLatest(fieldId);
+        // Build a FieldConfig from the analysis data
+        const features = data.hotspots.features;
+        let center: [number, number] = [-121.71, 38.81];
+        if (features.length > 0) {
+          const centroids = features.map(
+            (f) => (f.properties as { centroid: [number, number] }).centroid
+          );
+          center = [
+            centroids.reduce((s, c) => s + c[0], 0) / centroids.length,
+            centroids.reduce((s, c) => s + c[1], 0) / centroids.length,
+          ];
+        }
+
+        const config: FieldConfig = {
+          name: data.field.location,
+          crop: data.field.crop,
+          area_acres: data.field.area_acres,
+          date_start: data.field.date_start,
+          date_end: data.field.date_end,
+          center,
+          zoom: 15,
+          aoi: { type: "Polygon", coordinates: [] }, // Not needed for display
+        };
+        setFieldConfig(config);
+        confirmFieldSelection();
+      } catch {
+        // Could show error, but for now just fail silently
+      }
+    },
+    [setFieldConfig, confirmFieldSelection]
+  );
 
   const handleAnalyze = useCallback(async () => {
     getMapRef();
@@ -94,7 +175,7 @@ export default function App() {
     const handler = (e: KeyboardEvent) => {
       if (state.loading) return;
 
-      // Space/Enter advances intro
+      // Space/Enter advances intro and field-select
       if (e.key === " " || e.key === "Enter") {
         if (state.panel === "intro-problem" || state.panel === "intro-solution") {
           e.preventDefault();
@@ -139,12 +220,23 @@ export default function App() {
     onTicket: handleTicket,
     onNextZone: nextTicketZone,
     onSkipToComplete: handleSkipToComplete,
+    // Field selection props
+    drawnAoi,
+    drawnCenter,
+    onActivateDraw: handleActivateDraw,
+    onFieldConfirm: handleFieldConfirm,
+    onLoadSaved: handleLoadSaved,
   };
 
   return (
     <div className="relative h-screen w-screen bg-black">
       {/* Full-bleed satellite map */}
-      <MapView ref={mapHandle} />
+      <MapView
+        ref={mapHandle}
+        fieldConfig={state.fieldConfig}
+        drawMode={drawMode}
+        onAoiDrawn={handleAoiDrawn}
+      />
 
       {/* Intro: centered glass card — Sidebar: pinned right */}
       <AnimatePresence>
@@ -174,6 +266,15 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Draw mode hint overlay */}
+      {drawMode && (
+        <div className="absolute top-5 left-1/2 -translate-x-1/2 z-20 px-4 py-2 bg-blue-500/20 border border-blue-500/40 rounded-lg backdrop-blur-sm">
+          <p className="text-[13px] text-blue-300 font-medium">
+            Click and drag on the map to draw your field boundary
+          </p>
+        </div>
+      )}
     </div>
   );
 }

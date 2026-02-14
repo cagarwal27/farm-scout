@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { AppState } from "../hooks/useAppState";
 import type { PanelState, Severity, RouteData } from "../types/api";
-import { FIELD } from "../config/field";
+import type { FieldConfig } from "../config/field";
+import { FieldSelector } from "./FieldSelector";
 
 interface SidePanelProps {
   state: AppState;
@@ -15,6 +16,12 @@ interface SidePanelProps {
   onTicket: () => void;
   onNextZone: () => void;
   onSkipToComplete: () => void;
+  // Field selection props
+  drawnAoi: { type: "Polygon"; coordinates: number[][][] } | null;
+  drawnCenter: [number, number] | null;
+  onActivateDraw: () => void;
+  onFieldConfirm: (config: FieldConfig, monitor: boolean) => void;
+  onLoadSaved: (fieldId: string) => void;
 }
 
 const SEVERITY_COLOR: Record<Severity, string> = {
@@ -35,7 +42,7 @@ const SEVERITY_BG: Record<Severity, string> = {
   low: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
 };
 
-const PANEL_STEPS: PanelState[] = ["field-info", "analysis", "weather", "missions", "ticket"];
+const PANEL_STEPS: PanelState[] = ["field-select", "field-info", "analysis", "weather", "missions", "ticket"];
 
 const panelAnim = {
   initial: { opacity: 0, y: 16, filter: "blur(4px)" },
@@ -55,9 +62,15 @@ export function SidePanel({
   onTicket,
   onNextZone,
   onSkipToComplete,
+  drawnAoi,
+  drawnCenter,
+  onActivateDraw,
+  onFieldConfirm,
+  onLoadSaved,
 }: SidePanelProps) {
   const stepIndex = PANEL_STEPS.indexOf(state.panel);
   const isIntro = state.panel === "intro-problem" || state.panel === "intro-solution";
+  const isFieldSelect = state.panel === "field-select";
 
   return (
     <div className={`${isIntro ? "" : "h-full"} flex flex-col rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl backdrop-blur-2xl bg-black/30`}>
@@ -101,7 +114,18 @@ export function SidePanel({
             <motion.div key={state.panel} {...panelAnim} className="h-full">
               {state.panel === "intro-problem" && <IntroProblem />}
               {state.panel === "intro-solution" && <IntroSolution />}
-              {state.panel === "field-info" && <FieldInfo />}
+              {state.panel === "field-select" && (
+                <FieldSelector
+                  drawnAoi={drawnAoi}
+                  drawnCenter={drawnCenter}
+                  onActivateDraw={onActivateDraw}
+                  onConfirm={onFieldConfirm}
+                  onLoadSaved={onLoadSaved}
+                />
+              )}
+              {state.panel === "field-info" && (
+                <FieldInfo fieldConfig={state.fieldConfig} />
+              )}
               {state.panel === "analysis" && state.analyzeData && (
                 <AnalysisResults data={state.analyzeData} />
               )}
@@ -137,7 +161,19 @@ export function SidePanel({
             />
           )}
           {state.panel === "field-info" && (
-            <ActionButton label="Analyze Field Health" loading={loading} onClick={onAnalyze} />
+            <>
+              <ActionButton
+                label="Analyze Field Health"
+                loadingLabel="Analyzing satellite data..."
+                loading={loading}
+                onClick={onAnalyze}
+              />
+              {state.error && (
+                <div className="mt-2 text-[11px] text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg p-2.5">
+                  {state.error}
+                </div>
+              )}
+            </>
           )}
           {state.panel === "analysis" && (
             <ActionButton label="Explain Anomalies" loading={loading} onClick={onWeather} />
@@ -224,17 +260,17 @@ function formatDateRange(start: string, end: string): string {
   return `${fmt(start)} – ${fmt(end)}`;
 }
 
-function FieldInfo() {
+function FieldInfo({ fieldConfig }: { fieldConfig: FieldConfig }) {
   return (
     <div className="space-y-5">
-      <InfoRow label="Location" value={FIELD.name} />
-      <InfoRow label="Crop" value={FIELD.crop} />
+      <InfoRow label="Location" value={fieldConfig.name} />
+      <InfoRow label="Crop" value={fieldConfig.crop} />
       <InfoRow
         label="Analysis Period"
-        value={formatDateRange(FIELD.date_start, FIELD.date_end)}
+        value={formatDateRange(fieldConfig.date_start, fieldConfig.date_end)}
         mono
       />
-      <InfoRow label="Field Area" value={`${FIELD.area_acres} acres`} mono />
+      <InfoRow label="Field Area" value={`${fieldConfig.area_acres} acres`} mono />
     </div>
   );
 }
@@ -789,11 +825,13 @@ function ActionButton({
   loading,
   onClick,
   variant = "blue",
+  loadingLabel = "Processing...",
 }: {
   label: string;
   loading: boolean;
   onClick: () => void;
   variant?: "blue" | "green";
+  loadingLabel?: string;
 }) {
   const colors =
     variant === "green"
@@ -816,7 +854,7 @@ function ActionButton({
           />
         </svg>
       )}
-      {loading ? "Processing..." : label}
+      {loading ? loadingLabel : label}
     </button>
   );
 }

@@ -72,10 +72,11 @@ export interface RouteData {
   duration_min: number;
 }
 
-/** Sequential panel states: intro → demo flow */
+/** Sequential panel states: intro → field selection → demo flow */
 export type PanelState =
   | "intro-problem"
   | "intro-solution"
+  | "field-select"
   | "field-info"
   | "analysis"
   | "weather"
