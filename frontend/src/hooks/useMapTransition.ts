@@ -258,13 +258,13 @@ export function useMapTransition(
           },
         });
 
-        // 2. Outer neon glow
+        // 2. Outer neon glow (cyan — distinct from green zone markers)
         map.addLayer({
           id: "route-glow",
           type: "line",
           source: "route",
           paint: {
-            "line-color": "#00ffaa",
+            "line-color": "#22d3ee",
             "line-width": 8,
             "line-blur": 6,
             "line-opacity": 0,
@@ -278,7 +278,7 @@ export function useMapTransition(
           type: "line",
           source: "route",
           paint: {
-            "line-color": "#6ee7b7",
+            "line-color": "#a5f3fc",
             "line-width": 2.5,
             "line-opacity": 0,
             "line-opacity-transition": { duration: 800, delay: 0 },
@@ -314,7 +314,7 @@ export function useMapTransition(
       const markerFeatures: GeoJSON.Feature[] = missions.map((m) => ({
         type: "Feature" as const,
         geometry: { type: "Point" as const, coordinates: m.centroid },
-        properties: { label: String(m.priority), zone_id: m.zone_id },
+        properties: { label: m.zone_id, zone_id: m.zone_id },
       }));
 
       if (!map.getSource("zone-markers")) {
