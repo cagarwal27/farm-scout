@@ -157,7 +157,7 @@ export default function App() {
             transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] as [number, number, number, number] }}
             className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none"
           >
-            <div className="w-[480px] h-[480px] pointer-events-auto">
+            <div className="w-[480px] pointer-events-auto">
               <SidePanel {...sidePanelProps} />
             </div>
           </motion.div>

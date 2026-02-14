@@ -60,20 +60,22 @@ export function SidePanel({
   const isIntro = state.panel === "intro-problem" || state.panel === "intro-solution";
 
   return (
-    <div className="h-full flex flex-col rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl backdrop-blur-2xl bg-black/30">
+    <div className={`${isIntro ? "" : "h-full"} flex flex-col rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl backdrop-blur-2xl bg-black/30`}>
       {/* Gradient accent line */}
       <div className="h-[1px] w-full bg-gradient-to-r from-blue-500/40 via-emerald-500/40 to-blue-500/40" />
 
-      <div className="flex flex-col flex-1 p-5 overflow-hidden">
-        {/* Header */}
-        <div className="mb-4">
-          <h1 className="text-base font-semibold tracking-tight text-white/90">
-            FarmSense
-          </h1>
-          <p className="text-[11px] text-white/30 mt-0.5 tracking-wide">
-            Satellite Crop Intelligence
-          </p>
-        </div>
+      <div className={`flex flex-col flex-1 p-5 ${isIntro ? "" : "overflow-hidden"}`}>
+        {/* Header — hidden during intro */}
+        {!isIntro && (
+          <div className="mb-4">
+            <h1 className="text-base font-semibold tracking-tight text-white/90">
+              FarmSense
+            </h1>
+            <p className="text-[11px] text-white/30 mt-0.5 tracking-wide">
+              Satellite Crop Intelligence
+            </p>
+          </div>
+        )}
 
         {/* Step progress bar — hidden during intro */}
         {!isIntro && (
@@ -94,7 +96,7 @@ export function SidePanel({
         )}
 
         {/* Panel content — animated transitions */}
-        <div className="flex-1 overflow-hidden">
+        <div className={`flex-1 ${isIntro ? "" : "overflow-hidden"}`}>
           <AnimatePresence mode="wait">
             <motion.div key={state.panel} {...panelAnim} className="h-full">
               {state.panel === "intro-problem" && <IntroProblem />}
@@ -159,7 +161,7 @@ export function SidePanel({
 
 function IntroProblem() {
   return (
-    <div className="flex flex-col justify-center items-center text-center h-full -mt-4">
+    <div className="flex flex-col justify-center items-center text-center py-4">
       <p className="text-[10px] text-red-400/70 uppercase tracking-[0.2em] mb-4">
         The Problem
       </p>
@@ -180,7 +182,7 @@ function IntroProblem() {
 
 function IntroSolution() {
   return (
-    <div className="flex flex-col justify-center h-full -mt-4">
+    <div className="flex flex-col justify-center py-4">
       <p className="text-[10px] text-blue-400/70 uppercase tracking-[0.2em] mb-4">
         The Solution
       </p>
