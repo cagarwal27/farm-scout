@@ -5,6 +5,7 @@ import { SidePanel } from "./components/SidePanel";
 import { useAppState } from "./hooks/useAppState";
 import { useMapTransition } from "./hooks/useMapTransition";
 import { useRoute } from "./hooks/useRoute";
+import { useFarmParcels } from "./hooks/useFarmParcels";
 import { saveField, loadFieldLatest } from "./services/api";
 import type { FieldConfig } from "./config/field";
 
@@ -16,6 +17,17 @@ export default function App() {
   const [drawnAoi, setDrawnAoi] = useState<{ type: "Polygon"; coordinates: number[][][] } | null>(null);
   const [drawnCenter, setDrawnCenter] = useState<[number, number] | null>(null);
   const [drawActive, setDrawActive] = useState(false);
+
+  // Farm parcel browser
+  const {
+    parcels,
+    selectedParcel,
+    loading: parcelLoading,
+    zoomSufficient,
+    onViewportChange,
+    selectParcel,
+    clearSelection,
+  } = useFarmParcels();
 
   const getMapRef = useCallback(() => {
     if (!mapRef.current && mapHandle.current) {
@@ -58,7 +70,19 @@ export default function App() {
 
   const handleActivateDraw = useCallback(() => {
     setDrawActive(true);
-  }, []);
+    clearSelection();
+  }, [clearSelection]);
+
+  const handleParcelClick = useCallback(
+    (feature: GeoJSON.Feature) => {
+      selectParcel(feature);
+      // Clear draw state (mutual exclusion)
+      setDrawnAoi(null);
+      setDrawnCenter(null);
+      setDrawActive(false);
+    },
+    [selectParcel]
+  );
 
   const handleFieldConfirm = useCallback(
     async (config: FieldConfig, monitor: boolean) => {
@@ -67,6 +91,7 @@ export default function App() {
       setDrawnAoi(null);
       setDrawnCenter(null);
       setDrawActive(false);
+      clearSelection();
 
       // Save for monitoring if requested
       if (monitor) {
@@ -77,7 +102,7 @@ export default function App() {
         }
       }
     },
-    [setFieldConfig, confirmFieldSelection]
+    [setFieldConfig, confirmFieldSelection, clearSelection]
   );
 
   const handleLoadSaved = useCallback(
@@ -226,6 +251,9 @@ export default function App() {
     onActivateDraw: handleActivateDraw,
     onFieldConfirm: handleFieldConfirm,
     onLoadSaved: handleLoadSaved,
+    selectedParcel,
+    zoomSufficient,
+    parcelLoading,
   };
 
   return (
@@ -236,6 +264,10 @@ export default function App() {
         fieldConfig={state.fieldConfig}
         drawMode={drawMode}
         onAoiDrawn={handleAoiDrawn}
+        parcels={parcels}
+        selectedParcel={selectedParcel}
+        onViewportChange={onViewportChange}
+        onParcelClick={handleParcelClick}
       />
 
       {/* Intro: centered glass card — Sidebar: pinned right */}
@@ -272,6 +304,15 @@ export default function App() {
         <div className="absolute top-5 left-1/2 -translate-x-1/2 z-20 px-4 py-2 bg-blue-500/20 border border-blue-500/40 rounded-lg backdrop-blur-sm">
           <p className="text-[13px] text-blue-300 font-medium">
             Click and drag on the map to draw your field boundary
+          </p>
+        </div>
+      )}
+
+      {/* Zoom hint overlay — field-select + not zoomed in + not drawing */}
+      {state.panel === "field-select" && !zoomSufficient && !drawMode && (
+        <div className="absolute top-5 left-1/2 -translate-x-1/2 z-20 px-4 py-2 bg-cyan-500/15 border border-cyan-500/30 rounded-lg backdrop-blur-sm">
+          <p className="text-[13px] text-cyan-300 font-medium">
+            Zoom into a farm area to browse field parcels
           </p>
         </div>
       )}

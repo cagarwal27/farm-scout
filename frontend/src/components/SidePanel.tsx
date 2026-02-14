@@ -22,6 +22,10 @@ interface SidePanelProps {
   onActivateDraw: () => void;
   onFieldConfirm: (config: FieldConfig, monitor: boolean) => void;
   onLoadSaved: (fieldId: string) => void;
+  // Parcel browser props
+  selectedParcel?: GeoJSON.Feature | null;
+  zoomSufficient?: boolean;
+  parcelLoading?: boolean;
 }
 
 const SEVERITY_COLOR: Record<Severity, string> = {
@@ -67,6 +71,9 @@ export function SidePanel({
   onActivateDraw,
   onFieldConfirm,
   onLoadSaved,
+  selectedParcel,
+  zoomSufficient,
+  parcelLoading,
 }: SidePanelProps) {
   const stepIndex = PANEL_STEPS.indexOf(state.panel);
   const isIntro = state.panel === "intro-problem" || state.panel === "intro-solution";
@@ -121,6 +128,9 @@ export function SidePanel({
                   onActivateDraw={onActivateDraw}
                   onConfirm={onFieldConfirm}
                   onLoadSaved={onLoadSaved}
+                  selectedParcel={selectedParcel}
+                  zoomSufficient={zoomSufficient}
+                  parcelLoading={parcelLoading}
                 />
               )}
               {state.panel === "field-info" && (
