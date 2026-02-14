@@ -12,24 +12,24 @@
 export const FIELD = {
   name: "Yolo County, CA",
   crop: "Almond",
-  area_acres: 412.5,
-  date_start: "2024-07-01",
-  date_end: "2024-07-14",
+  area_acres: 932.6,
+  date_start: "2024-07-02",
+  date_end: "2024-07-12",
 
-  /** Map center [lon, lat] */
-  center: [-121.872, 38.718] as [number, number],
-  zoom: 14,
+  /** Map center [lon, lat] — Knights Landing almond orchards */
+  center: [-121.71, 38.81] as [number, number],
+  zoom: 15,
 
-  /** AOI polygon sent to POST /api/analyze */
+  /** AOI polygon sent to POST /api/analyze — matches backend precache AOI */
   aoi: {
     type: "Polygon" as const,
     coordinates: [
       [
-        [-121.878, 38.724],
-        [-121.864, 38.724],
-        [-121.864, 38.712],
-        [-121.878, 38.712],
-        [-121.878, 38.724],
+        [-121.72, 38.82],
+        [-121.70, 38.82],
+        [-121.70, 38.80],
+        [-121.72, 38.80],
+        [-121.72, 38.82],
       ],
     ],
   },

@@ -1,8 +1,7 @@
 import { useCallback, useRef } from "react";
 import type maplibregl from "maplibre-gl";
 import type { AnalyzeResponse, RouteData } from "../types/api";
-
-const FIELD_CENTER: [number, number] = [-121.872, 38.718];
+import { FIELD } from "../config/field";
 
 /** Creates a pulsing dot image for cluster centroids */
 function createPulsingDot(map: maplibregl.Map, size = 100) {
@@ -181,8 +180,8 @@ export function useMapTransition(
       // 800ms — camera sweep
       setTimeout(() => {
         map.flyTo({
-          center: FIELD_CENTER,
-          zoom: 15,
+          center: FIELD.center,
+          zoom: FIELD.zoom + 1,
           pitch: 45,
           bearing: -20,
           duration: 3000,
@@ -380,7 +379,7 @@ export function useMapTransition(
 
       // Camera pulls back to reveal full route
       map.flyTo({
-        center: FIELD_CENTER,
+        center: FIELD.center,
         zoom: 14.5,
         pitch: 30,
         bearing: -10,
@@ -417,7 +416,7 @@ export function useMapTransition(
 
     map.setPaintProperty("satellite", "raster-brightness-max", 0.5);
     map.flyTo({
-      center: FIELD_CENTER,
+      center: FIELD.center,
       zoom: 14,
       pitch: 0,
       bearing: 0,
@@ -466,7 +465,7 @@ export function useMapTransition(
     const map = mapRef.current;
     if (!map) return;
     map.flyTo({
-      center: FIELD_CENTER,
+      center: FIELD.center,
       zoom: 14.5,
       pitch: 30,
       bearing: -10,

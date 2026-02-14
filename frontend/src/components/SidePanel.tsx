@@ -318,7 +318,7 @@ function WeatherContext({
       {/* Mini temperature bars */}
       <div>
         <p className="text-[10px] text-white/30 uppercase tracking-widest mb-1">
-          Temperature (14 days)
+          Temperature ({data.daily.length} days)
         </p>
         <div className="flex items-center justify-between text-[9px] font-mono text-white/20 mb-1.5">
           <span>{Math.round(minTemp)}°F</span>
@@ -414,7 +414,7 @@ function MissionsPanel({
       {/* Compact mission rows — no checklists, no scroll needed */}
       {data.missions.map((m) => {
         const severity: Severity =
-          m.ndvi_drop <= -0.2 ? "high" : m.ndvi_drop <= -0.15 ? "medium" : "low";
+          m.ndvi_drop <= -0.10 ? "high" : m.ndvi_drop <= -0.08 ? "medium" : "low";
         const isSelected = selectedZone === m.zone_id;
         return (
           <div
@@ -483,6 +483,8 @@ const ZONE_FINDINGS: Record<string, string> = {
   C: "Moderate wilting from irrigation deficit. Drip line repair needed in rows 34-38.",
   D: "Minor leaf curling observed. Monitor over next 7 days, no immediate action required.",
   E: "Mild canopy thinning consistent with heat stress. Within acceptable recovery range.",
+  F: "Isolated branch dieback in upper canopy. Likely sunburn damage from recent heat spike.",
+  G: "Slight yellowing at leaf margins. Early sign of water stress — check emitter flow rates.",
 };
 
 type InspectionPhase = "idle" | "checking" | "finding" | "complete";
@@ -563,7 +565,7 @@ function FieldTicket({
   if (!m) return null;
 
   const severity: Severity =
-    m.ndvi_drop <= -0.2 ? "high" : m.ndvi_drop <= -0.15 ? "medium" : "low";
+    m.ndvi_drop <= -0.10 ? "high" : m.ndvi_drop <= -0.08 ? "medium" : "low";
   const isLastZone = zoneIndex === missions.length - 1;
   const finding = ZONE_FINDINGS[m.zone_id] || "Assessment complete.";
 
