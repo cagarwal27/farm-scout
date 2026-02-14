@@ -65,6 +65,14 @@ export interface MissionsResponse {
   };
 }
 
+/** Frontend-only: OSRM route result (not a backend contract) */
+export interface RouteData {
+  geometry: GeoJSON.LineString;
+  distance_km: number;
+  duration_min: number;
+  isFallback: boolean;
+}
+
 /** The 5 sequential panel states in the demo flow */
 export type PanelState =
   | "field-info"

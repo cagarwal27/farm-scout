@@ -4,6 +4,7 @@ import type {
   AnalyzeResponse,
   WeatherResponse,
   MissionsResponse,
+  RouteData,
 } from "../types/api";
 import { analyzeField, fetchWeather, fetchMissions } from "../services/api";
 
@@ -13,6 +14,7 @@ export interface AppState {
   analyzeData: AnalyzeResponse | null;
   weatherData: WeatherResponse | null;
   missionsData: MissionsResponse | null;
+  routeData: RouteData | null;
 }
 
 export function useAppState() {
@@ -22,6 +24,7 @@ export function useAppState() {
     analyzeData: null,
     weatherData: null,
     missionsData: null,
+    routeData: null,
   });
 
   const runAnalysis = useCallback(async (): Promise<AnalyzeResponse> => {
@@ -32,7 +35,6 @@ export function useAppState() {
       return data;
     } catch {
       setState((s) => ({ ...s, loading: false }));
-      // Fallback to mock on error
       const { default: fallback } = await import("../mocks/mockAnalyze.json");
       const data = fallback as AnalyzeResponse;
       setState((s) => ({ ...s, analyzeData: data, panel: "analysis", loading: false }));
@@ -73,6 +75,14 @@ export function useAppState() {
     }
   }, [state.analyzeData]);
 
+  const setRouteData = useCallback((routeData: RouteData) => {
+    setState((s) => ({ ...s, routeData, loading: false }));
+  }, []);
+
+  const setRouteLoading = useCallback(() => {
+    setState((s) => ({ ...s, loading: true }));
+  }, []);
+
   const showTicket = useCallback(() => {
     setState((s) => ({ ...s, panel: "ticket" }));
   }, []);
@@ -84,8 +94,18 @@ export function useAppState() {
       analyzeData: null,
       weatherData: null,
       missionsData: null,
+      routeData: null,
     });
   }, []);
 
-  return { state, runAnalysis, runWeather, runMissions, showTicket, reset };
+  return {
+    state,
+    runAnalysis,
+    runWeather,
+    runMissions,
+    setRouteData,
+    setRouteLoading,
+    showTicket,
+    reset,
+  };
 }

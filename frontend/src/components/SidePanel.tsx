@@ -1,5 +1,5 @@
 import type { AppState } from "../hooks/useAppState";
-import type { Severity } from "../types/api";
+import type { Severity, RouteData } from "../types/api";
 
 interface SidePanelProps {
   state: AppState;
@@ -7,6 +7,7 @@ interface SidePanelProps {
   onAnalyze: () => void;
   onWeather: () => void;
   onMissions: () => void;
+  onRoute: () => void;
   onTicket: () => void;
 }
 
@@ -28,6 +29,7 @@ export function SidePanel({
   onAnalyze,
   onWeather,
   onMissions,
+  onRoute,
   onTicket,
 }: SidePanelProps) {
   return (
@@ -51,7 +53,7 @@ export function SidePanel({
           <WeatherContext data={state.weatherData} />
         )}
         {state.panel === "missions" && state.missionsData && (
-          <MissionsPanel data={state.missionsData} />
+          <MissionsPanel data={state.missionsData} routeData={state.routeData} />
         )}
         {state.panel === "ticket" && state.missionsData && (
           <FieldTicket missions={state.missionsData.missions} />
@@ -81,7 +83,15 @@ export function SidePanel({
             onClick={onMissions}
           />
         )}
-        {state.panel === "missions" && (
+        {state.panel === "missions" && !state.routeData && (
+          <ActionButton
+            label="Optimize Route"
+            loading={loading}
+            onClick={onRoute}
+            variant="green"
+          />
+        )}
+        {state.panel === "missions" && state.routeData && (
           <ActionButton
             label="Create Field Ticket"
             loading={loading}
@@ -254,8 +264,10 @@ function WeatherContext({
 
 function MissionsPanel({
   data,
+  routeData,
 }: {
   data: NonNullable<AppState["missionsData"]>;
+  routeData: RouteData | null;
 }) {
   return (
     <div className="space-y-3">
@@ -306,6 +318,25 @@ function MissionsPanel({
         <span>~{data.summary.estimated_hours} hrs</span>
         <span>{data.summary.crew_required} crew</span>
       </div>
+
+      {/* Route summary (shown after route is fetched) */}
+      {routeData && (
+        <div className="border-t border-slate-800 pt-3">
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded p-3">
+            <p className="text-xs text-emerald-400 uppercase tracking-wider mb-1">
+              Optimal Route
+            </p>
+            <div className="flex items-center justify-between text-sm font-mono">
+              <span className="text-emerald-300">{routeData.distance_km} km</span>
+              <span className="text-slate-400">|</span>
+              <span className="text-emerald-300">{routeData.duration_min} min</span>
+            </div>
+            {routeData.isFallback && (
+              <p className="text-[10px] text-slate-500 mt-1">Estimated (straight-line)</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -404,14 +435,21 @@ function ActionButton({
   label,
   loading,
   onClick,
+  variant = "blue",
 }: {
   label: string;
   loading: boolean;
   onClick: () => void;
+  variant?: "blue" | "green";
 }) {
+  const colors =
+    variant === "green"
+      ? "bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/50"
+      : "bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50";
+
   return (
     <button
-      className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white text-sm font-medium rounded transition-colors flex items-center justify-center gap-2"
+      className={`w-full py-3 ${colors} disabled:cursor-not-allowed text-white text-sm font-medium rounded transition-colors flex items-center justify-center gap-2`}
       onClick={onClick}
       disabled={loading}
     >

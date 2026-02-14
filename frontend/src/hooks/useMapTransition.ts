@@ -1,6 +1,6 @@
 import { useCallback, useRef } from "react";
 import type maplibregl from "maplibre-gl";
-import type { AnalyzeResponse } from "../types/api";
+import type { AnalyzeResponse, RouteData } from "../types/api";
 
 const FIELD_CENTER: [number, number] = [-121.872, 38.718];
 
@@ -186,6 +186,133 @@ export function useMapTransition(mapRef: React.RefObject<maplibregl.Map | null>)
     [mapRef, prepareLayers]
   );
 
+  /** Draw route line + numbered zone markers on the map */
+  const showRoute = useCallback(
+    (routeData: RouteData, missions: { zone_id: string; priority: number; centroid: [number, number] }[]) => {
+      const map = mapRef.current;
+      if (!map) return;
+
+      // Add route source if not present
+      if (!map.getSource("route")) {
+        map.addSource("route", {
+          type: "geojson",
+          data: { type: "Feature", geometry: routeData.geometry, properties: {} },
+        });
+
+        // Route glow (wide, blurred, underneath)
+        map.addLayer({
+          id: "route-glow",
+          type: "line",
+          source: "route",
+          paint: {
+            "line-color": "#00ffaa",
+            "line-width": 10,
+            "line-blur": 5,
+            "line-opacity": 0,
+            "line-opacity-transition": { duration: 1000, delay: 0 },
+          },
+        });
+
+        // Route line (dashed, on top)
+        map.addLayer({
+          id: "route-line",
+          type: "line",
+          source: "route",
+          paint: {
+            "line-color": "#00ffaa",
+            "line-width": 3,
+            "line-dasharray": [2, 1],
+            "line-opacity": 0,
+            "line-opacity-transition": { duration: 1000, delay: 0 },
+          },
+        });
+      } else {
+        (map.getSource("route") as maplibregl.GeoJSONSource).setData({
+          type: "Feature",
+          geometry: routeData.geometry,
+          properties: {},
+        });
+      }
+
+      // Add zone marker source if not present
+      const markerFeatures: GeoJSON.Feature[] = missions.map((m) => ({
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: m.centroid },
+        properties: { label: String(m.priority), zone_id: m.zone_id },
+      }));
+
+      if (!map.getSource("zone-markers")) {
+        map.addSource("zone-markers", {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: markerFeatures },
+        });
+
+        // Green circle background
+        map.addLayer({
+          id: "zone-marker-bg",
+          type: "circle",
+          source: "zone-markers",
+          paint: {
+            "circle-radius": 12,
+            "circle-color": "#059669",
+            "circle-stroke-color": "#00ffaa",
+            "circle-stroke-width": 2,
+            "circle-opacity": 0,
+            "circle-opacity-transition": { duration: 600, delay: 0 },
+            "circle-stroke-opacity": 0,
+            "circle-stroke-opacity-transition": { duration: 600, delay: 0 },
+          },
+        });
+
+        // White number labels
+        map.addLayer({
+          id: "zone-marker-label",
+          type: "symbol",
+          source: "zone-markers",
+          layout: {
+            "text-field": ["get", "label"],
+            "text-size": 12,
+            "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+            "text-allow-overlap": true,
+          },
+          paint: {
+            "text-color": "#ffffff",
+            "text-opacity": 0,
+            "text-opacity-transition": { duration: 600, delay: 0 },
+          },
+        });
+      } else {
+        (map.getSource("zone-markers") as maplibregl.GeoJSONSource).setData({
+          type: "FeatureCollection",
+          features: markerFeatures,
+        });
+      }
+
+      // Animate: pull camera back to see full route, then fade layers in
+      map.flyTo({
+        center: FIELD_CENTER,
+        zoom: 14.5,
+        pitch: 30,
+        bearing: -10,
+        duration: 1500,
+      });
+
+      // Fade in route after camera starts moving
+      setTimeout(() => {
+        map.setPaintProperty("route-glow", "line-opacity", 0.3);
+        map.setPaintProperty("route-line", "line-opacity", 0.9);
+      }, 300);
+
+      // Fade in numbered markers after route appears
+      setTimeout(() => {
+        map.setPaintProperty("zone-marker-bg", "circle-opacity", 1);
+        map.setPaintProperty("zone-marker-bg", "circle-stroke-opacity", 1);
+        map.setPaintProperty("zone-marker-label", "text-opacity", 1);
+      }, 800);
+    },
+    [mapRef]
+  );
+
   /** Reset map to initial state */
   const resetMap = useCallback(() => {
     const map = mapRef.current;
@@ -205,7 +332,18 @@ export function useMapTransition(mapRef: React.RefObject<maplibregl.Map | null>)
       map.setPaintProperty("hotspot-outline", "line-opacity", 0);
       map.setPaintProperty("centroid-dots", "icon-opacity", 0);
     }
+
+    // Clean up route layers if they exist
+    if (map.getSource("route")) {
+      map.setPaintProperty("route-glow", "line-opacity", 0);
+      map.setPaintProperty("route-line", "line-opacity", 0);
+    }
+    if (map.getSource("zone-markers")) {
+      map.setPaintProperty("zone-marker-bg", "circle-opacity", 0);
+      map.setPaintProperty("zone-marker-bg", "circle-stroke-opacity", 0);
+      map.setPaintProperty("zone-marker-label", "text-opacity", 0);
+    }
   }, [mapRef]);
 
-  return { runTransition, resetMap };
+  return { runTransition, showRoute, resetMap };
 }
