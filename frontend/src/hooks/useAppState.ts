@@ -21,7 +21,7 @@ export interface AppState {
 
 export function useAppState() {
   const [state, setState] = useState<AppState>({
-    panel: "field-info",
+    panel: "intro-problem",
     loading: false,
     analyzeData: null,
     weatherData: null,
@@ -33,6 +33,15 @@ export function useAppState() {
 
   const selectZone = useCallback((zoneId: string | null) => {
     setState((s) => ({ ...s, selectedZone: zoneId }));
+  }, []);
+
+  /** Advance through intro screens */
+  const advanceIntro = useCallback(() => {
+    setState((s) => {
+      if (s.panel === "intro-problem") return { ...s, panel: "intro-solution" };
+      if (s.panel === "intro-solution") return { ...s, panel: "field-info" };
+      return s;
+    });
   }, []);
 
   /** Fetch analysis data — stores it but does NOT switch panel (spinner stays) */
@@ -92,10 +101,6 @@ export function useAppState() {
     setState((s) => ({ ...s, routeData, loading: false }));
   }, []);
 
-  const setRouteLoading = useCallback(() => {
-    setState((s) => ({ ...s, loading: true }));
-  }, []);
-
   const showTicket = useCallback(() => {
     setState((s) => ({ ...s, panel: "ticket", ticketZoneIndex: 0 }));
   }, []);
@@ -104,9 +109,17 @@ export function useAppState() {
     setState((s) => ({ ...s, ticketZoneIndex: s.ticketZoneIndex + 1 }));
   }, []);
 
+  /** Skip directly to "All Complete" — for demo video */
+  const skipToComplete = useCallback(() => {
+    setState((s) => {
+      const total = s.missionsData?.missions.length ?? 0;
+      return { ...s, ticketZoneIndex: total };
+    });
+  }, []);
+
   const reset = useCallback(() => {
     setState({
-      panel: "field-info",
+      panel: "intro-problem",
       loading: false,
       analyzeData: null,
       weatherData: null,
@@ -121,13 +134,14 @@ export function useAppState() {
     state,
     fetchAnalysis,
     selectZone,
+    advanceIntro,
     revealAnalysis,
     runWeather,
     runMissions,
     setRouteData,
-    setRouteLoading,
     showTicket,
     nextTicketZone,
+    skipToComplete,
     reset,
   };
 }

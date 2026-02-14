@@ -1,4 +1,5 @@
 import type { AnalyzeResponse, WeatherResponse, MissionsResponse } from "../types/api";
+import { FIELD } from "../config/field";
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -12,18 +13,9 @@ export async function analyzeField(): Promise<AnalyzeResponse> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      aoi: {
-        type: "Polygon",
-        coordinates: [[
-          [-121.88, 38.73],
-          [-121.86, 38.73],
-          [-121.86, 38.71],
-          [-121.88, 38.71],
-          [-121.88, 38.73],
-        ]],
-      },
-      date_start: "2024-07-01",
-      date_end: "2024-07-14",
+      aoi: FIELD.aoi,
+      date_start: FIELD.date_start,
+      date_end: FIELD.date_end,
     }),
   });
   if (!res.ok) throw new Error(`analyze failed: ${res.status}`);
@@ -36,10 +28,10 @@ export async function fetchWeather(): Promise<WeatherResponse> {
     return data as WeatherResponse;
   }
   const params = new URLSearchParams({
-    lat: "38.72",
-    lon: "-121.87",
-    start: "2024-07-01",
-    end: "2024-07-14",
+    lat: String(FIELD.center[1]),
+    lon: String(FIELD.center[0]),
+    start: FIELD.date_start,
+    end: FIELD.date_end,
   });
   const res = await fetch(`${API_BASE}/api/weather?${params}`);
   if (!res.ok) throw new Error(`weather failed: ${res.status}`);

@@ -2,16 +2,19 @@ import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { AppState } from "../hooks/useAppState";
 import type { PanelState, Severity, RouteData } from "../types/api";
+import { FIELD } from "../config/field";
 
 interface SidePanelProps {
   state: AppState;
   loading: boolean;
+  onAdvanceIntro: () => void;
   onAnalyze: () => void;
   onWeather: () => void;
   onMissions: () => void;
   onRoute: () => void;
   onTicket: () => void;
   onNextZone: () => void;
+  onSkipToComplete: () => void;
 }
 
 const SEVERITY_COLOR: Record<Severity, string> = {
@@ -44,14 +47,17 @@ const panelAnim = {
 export function SidePanel({
   state,
   loading,
+  onAdvanceIntro,
   onAnalyze,
   onWeather,
   onMissions,
   onRoute,
   onTicket,
   onNextZone,
+  onSkipToComplete,
 }: SidePanelProps) {
   const stepIndex = PANEL_STEPS.indexOf(state.panel);
+  const isIntro = state.panel === "intro-problem" || state.panel === "intro-solution";
 
   return (
     <div className="h-full flex flex-col rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl backdrop-blur-2xl bg-black/30">
@@ -69,26 +75,30 @@ export function SidePanel({
           </p>
         </div>
 
-        {/* Step progress bar */}
-        <div className="flex items-center gap-1.5 mb-5">
-          {PANEL_STEPS.map((step, i) => (
-            <div
-              key={step}
-              className={`h-[3px] flex-1 rounded-full transition-all duration-500 ${
-                i < stepIndex
-                  ? "bg-emerald-500/60"
-                  : i === stepIndex
-                    ? "bg-blue-500/80"
-                    : "bg-white/[0.06]"
-              }`}
-            />
-          ))}
-        </div>
+        {/* Step progress bar — hidden during intro */}
+        {!isIntro && (
+          <div className="flex items-center gap-1.5 mb-5">
+            {PANEL_STEPS.map((step, i) => (
+              <div
+                key={step}
+                className={`h-[3px] flex-1 rounded-full transition-all duration-500 ${
+                  i < stepIndex
+                    ? "bg-emerald-500/60"
+                    : i === stepIndex
+                      ? "bg-blue-500/80"
+                      : "bg-white/[0.06]"
+                }`}
+              />
+            ))}
+          </div>
+        )}
 
-        {/* Panel content — animated transitions, no scroll */}
+        {/* Panel content — animated transitions */}
         <div className="flex-1 overflow-hidden">
           <AnimatePresence mode="wait">
             <motion.div key={state.panel} {...panelAnim} className="h-full">
+              {state.panel === "intro-problem" && <IntroProblem />}
+              {state.panel === "intro-solution" && <IntroSolution />}
               {state.panel === "field-info" && <FieldInfo />}
               {state.panel === "analysis" && state.analyzeData && (
                 <AnalysisResults data={state.analyzeData} />
@@ -108,6 +118,7 @@ export function SidePanel({
                   missions={state.missionsData.missions}
                   zoneIndex={state.ticketZoneIndex}
                   onNextZone={onNextZone}
+                  onSkipToComplete={onSkipToComplete}
                 />
               )}
             </motion.div>
@@ -116,6 +127,13 @@ export function SidePanel({
 
         {/* Action buttons */}
         <div className="mt-4 pt-3 border-t border-white/[0.06]">
+          {isIntro && (
+            <ActionButton
+              label={state.panel === "intro-problem" ? "Continue" : "Start Demo"}
+              loading={false}
+              onClick={onAdvanceIntro}
+            />
+          )}
           {state.panel === "field-info" && (
             <ActionButton label="Analyze Field Health" loading={loading} onClick={onAnalyze} />
           )}
@@ -137,15 +155,84 @@ export function SidePanel({
   );
 }
 
+/* ---------- Intro ---------- */
+
+function IntroProblem() {
+  return (
+    <div className="flex flex-col justify-center items-center text-center h-full -mt-4">
+      <p className="text-[10px] text-red-400/70 uppercase tracking-[0.2em] mb-4">
+        The Problem
+      </p>
+      <h2 className="text-[24px] font-bold leading-tight text-white/90 mb-4 whitespace-nowrap">
+        400 acres. Trees dying in silence.
+      </h2>
+      <p className="text-[14px] text-white/40 leading-relaxed mb-3">
+        Heat stress, irrigation failure, and pest damage are destroying crops
+        across hundreds of acres, invisible from the ground until it's too
+        late.
+      </p>
+      <p className="text-[13px] text-white/25 leading-relaxed">
+        By the time a farmer sees the damage, yield is already lost.
+      </p>
+    </div>
+  );
+}
+
+function IntroSolution() {
+  return (
+    <div className="flex flex-col justify-center h-full -mt-4">
+      <p className="text-[10px] text-blue-400/70 uppercase tracking-[0.2em] mb-4">
+        The Solution
+      </p>
+      <h2 className="text-[28px] font-bold leading-tight text-white/90 mb-5">
+        See it from space.
+        <br />
+        <span className="text-blue-400 drop-shadow-[0_0_12px_rgba(59,130,246,0.3)]">
+          Fix it from the ground.
+        </span>
+      </h2>
+      <div className="space-y-3">
+        {[
+          ["Detect", "Satellite NDVI change detection finds stress zones invisible to the eye"],
+          ["Diagnose", "Weather correlation identifies heat, drought, or irrigation as the cause"],
+          ["Deploy", "Auto-generated scout missions with optimized routes and field checklists"],
+        ].map(([title, desc]) => (
+          <div key={title} className="flex gap-3">
+            <div className="w-1 rounded-full bg-blue-500/40 flex-shrink-0" />
+            <div>
+              <p className="text-[13px] font-semibold text-white/80">{title}</p>
+              <p className="text-[11px] text-white/30 leading-relaxed">{desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ---------- Sub-components ---------- */
+
+function formatDateRange(start: string, end: string): string {
+  const fmt = (d: string) =>
+    new Date(d + "T00:00:00").toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  return `${fmt(start)} – ${fmt(end)}`;
+}
 
 function FieldInfo() {
   return (
     <div className="space-y-5">
-      <InfoRow label="Location" value="Yolo County, CA" />
-      <InfoRow label="Crop" value="Almond" />
-      <InfoRow label="Analysis Period" value="Jul 1 – Jul 14, 2024" mono />
-      <InfoRow label="Field Area" value="412.5 acres" mono />
+      <InfoRow label="Location" value={FIELD.name} />
+      <InfoRow label="Crop" value={FIELD.crop} />
+      <InfoRow
+        label="Analysis Period"
+        value={formatDateRange(FIELD.date_start, FIELD.date_end)}
+        mono
+      />
+      <InfoRow label="Field Area" value={`${FIELD.area_acres} acres`} mono />
     </div>
   );
 }
@@ -158,28 +245,28 @@ function AnalysisResults({
   return (
     <div className="space-y-4">
       <p className="text-[11px] text-white/40">
-        {data.summary.clusters_found} anomaly clusters detected across{" "}
-        {data.summary.total_affected_acres} acres
+        {data.summary.clusters_found} stress zones found —{" "}
+        {data.summary.total_affected_acres} acres affected
       </p>
 
       <div className="grid grid-cols-2 gap-2">
-        <StatCard label="Clusters" value={data.summary.clusters_found} />
+        <StatCard label="Stress Zones" value={data.summary.clusters_found} />
         <StatCard label="Affected" value={`${data.summary.total_affected_acres} ac`} />
         <StatCard
-          label="Avg NDVI Drop"
-          value={`${Math.round(data.summary.avg_ndvi_drop * 100)}%`}
+          label="Avg Decline"
+          value={`${Math.abs(Math.round(data.summary.avg_ndvi_drop * 100))}%`}
           negative
         />
         <StatCard
-          label="Max NDVI Drop"
-          value={`${Math.round(data.summary.max_ndvi_drop * 100)}%`}
+          label="Worst Decline"
+          value={`${Math.abs(Math.round(data.summary.max_ndvi_drop * 100))}%`}
           negative
         />
       </div>
 
       <div className="pt-3 border-t border-white/[0.06]">
         <p className="text-[10px] text-white/30 uppercase tracking-widest mb-2.5">
-          Hotspot Zones
+          Stress Zones
         </p>
         <div className="space-y-1.5">
           {data.hotspots.features.map((f) => {
@@ -203,7 +290,7 @@ function AnalysisResults({
                   <span className="text-white/60">{p.area_acres} ac</span>
                 </div>
                 <span className={`text-xs font-mono font-medium ${SEVERITY_COLOR[p.severity]}`}>
-                  {Math.round(p.ndvi_drop * 100)}%
+                  {Math.abs(Math.round(p.ndvi_drop * 100))}% decline
                 </span>
               </div>
             );
@@ -219,30 +306,39 @@ function WeatherContext({
 }: {
   data: NonNullable<AppState["weatherData"]>;
 }) {
-  const maxTemp = Math.max(...data.daily.map((d) => d.temp_max_f));
+  const temps = data.daily.map((d) => d.temp_max_f);
+  const maxTemp = Math.max(...temps);
+  const minTemp = Math.min(...temps);
+  const range = maxTemp - minTemp || 1;
 
   return (
     <div className="space-y-4">
       {/* Mini temperature bars */}
       <div>
-        <p className="text-[10px] text-white/30 uppercase tracking-widest mb-2.5">
+        <p className="text-[10px] text-white/30 uppercase tracking-widest mb-1">
           Temperature (14 days)
         </p>
-        <div className="flex items-end gap-[3px] h-16 px-1">
+        <div className="flex items-center justify-between text-[9px] font-mono text-white/20 mb-1.5">
+          <span>{Math.round(minTemp)}°F</span>
+          <span>{Math.round(maxTemp)}°F</span>
+        </div>
+        <div className="flex gap-[3px] h-16 px-1">
           {data.daily.map((d) => {
-            const pct = (d.temp_max_f / maxTemp) * 100;
-            const isHot = d.temp_max_f >= 100;
+            const t = (d.temp_max_f - minTemp) / range;
+            const pct = 25 + t * 75;
+            const colorClass =
+              t >= 0.7
+                ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]"
+                : t >= 0.35
+                  ? "bg-amber-500/70"
+                  : "bg-blue-500/50";
             return (
               <div
                 key={d.date}
-                className="flex-1 flex flex-col items-center gap-0.5"
+                className="flex-1 flex flex-col items-center justify-end gap-0.5"
               >
                 <div
-                  className={`w-full rounded-sm ${
-                    isHot
-                      ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]"
-                      : "bg-blue-500/50"
-                  }`}
+                  className={`w-full rounded-sm ${colorClass}`}
                   style={{ height: `${pct}%` }}
                 />
                 <span className="text-[7px] text-white/25">{d.date.slice(8)}</span>
@@ -272,7 +368,7 @@ function WeatherContext({
       {/* Correlation */}
       <div className="pt-3 border-t border-white/[0.06]">
         <p className="text-[10px] text-white/30 uppercase tracking-widest mb-2">
-          Correlated Stress Factors
+          Likely Causes
         </p>
         <p className="text-[13px]">
           <span className="text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.4)]">
@@ -340,7 +436,7 @@ function MissionsPanel({
             <div className="flex items-center gap-3 text-[11px] font-mono text-white/40">
               <span>{m.area_acres} ac</span>
               <span className={SEVERITY_COLOR[severity]}>
-                {Math.round(m.ndvi_drop * 100)}%
+                {Math.abs(Math.round(m.ndvi_drop * 100))}% decline
               </span>
             </div>
           </div>
@@ -387,16 +483,18 @@ const ZONE_FINDINGS: Record<string, string> = {
   E: "Mild canopy thinning consistent with heat stress. Within acceptable recovery range.",
 };
 
-type InspectionPhase = "idle" | "checking" | "photo" | "finding" | "complete";
+type InspectionPhase = "idle" | "checking" | "finding" | "complete";
 
 function FieldTicket({
   missions,
   zoneIndex,
   onNextZone,
+  onSkipToComplete,
 }: {
   missions: NonNullable<AppState["missionsData"]>["missions"];
   zoneIndex: number;
   onNextZone: () => void;
+  onSkipToComplete: () => void;
 }) {
   const [phase, setPhase] = useState<InspectionPhase>("idle");
   const [checkedCount, setCheckedCount] = useState(0);
@@ -417,17 +515,10 @@ function FieldTicket({
       const timer = setTimeout(() => setCheckedCount((c) => c + 1), 300);
       return () => clearTimeout(timer);
     }
-    // All items checked → photo phase
-    const timer = setTimeout(() => setPhase("photo"), 400);
+    // All items checked → finding
+    const timer = setTimeout(() => setPhase("finding"), 500);
     return () => clearTimeout(timer);
   }, [phase, checkedCount, m]);
-
-  // Photo → finding
-  useEffect(() => {
-    if (phase !== "photo") return;
-    const timer = setTimeout(() => setPhase("finding"), 800);
-    return () => clearTimeout(timer);
-  }, [phase]);
 
   // Finding → complete
   useEffect(() => {
@@ -505,7 +596,7 @@ function FieldTicket({
               Zone {m.zone_id}
             </span>
             <p className="text-[11px] text-white/30 font-mono">
-              {m.area_acres} ac · {Math.round(m.ndvi_drop * 100)}% NDVI
+              {m.area_acres} ac · {Math.abs(Math.round(m.ndvi_drop * 100))}% health decline
             </p>
           </div>
           <span
@@ -561,40 +652,7 @@ function FieldTicket({
           })}
         </div>
 
-        {/* Photo capture — fades in after checklist */}
-        {phase !== "idle" && phase !== "checking" && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <div className="w-full h-14 bg-emerald-500/[0.05] border border-emerald-500/20 rounded-lg flex items-center justify-center gap-2">
-              <svg
-                className="w-4 h-4 text-emerald-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"
-                />
-              </svg>
-              <span className="text-[11px] text-emerald-400/70">
-                canopy_{m.zone_id.toLowerCase()}_01.jpg captured
-              </span>
-            </div>
-          </motion.div>
-        )}
-
-        {/* AI Finding — fades in after photo */}
+        {/* AI Finding — fades in after checklist completes */}
         {(phase === "finding" || phase === "complete") && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}

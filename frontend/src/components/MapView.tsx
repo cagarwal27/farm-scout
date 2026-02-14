@@ -1,8 +1,7 @@
 import { useRef, useEffect, useImperativeHandle, forwardRef } from "react";
 import maplibregl from "maplibre-gl";
+import { FIELD } from "../config/field";
 
-const MAP_CENTER: [number, number] = [-121.872, 38.718];
-const MAP_ZOOM = 14;
 const ESRI_TILES =
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 
@@ -47,8 +46,8 @@ export const MapView = forwardRef<MapHandle>(function MapView(_props, ref) {
           },
         ],
       },
-      center: MAP_CENTER,
-      zoom: MAP_ZOOM,
+      center: FIELD.center,
+      zoom: FIELD.zoom,
       attributionControl: false,
     });
 
@@ -60,16 +59,7 @@ export const MapView = forwardRef<MapHandle>(function MapView(_props, ref) {
         type: "geojson",
         data: {
           type: "Feature",
-          geometry: {
-            type: "Polygon",
-            coordinates: [[
-              [-121.878, 38.724],
-              [-121.864, 38.724],
-              [-121.864, 38.712],
-              [-121.878, 38.712],
-              [-121.878, 38.724],
-            ]],
-          },
+          geometry: { type: FIELD.aoi.type, coordinates: FIELD.aoi.coordinates as unknown as number[][][] },
           properties: {},
         },
       });
