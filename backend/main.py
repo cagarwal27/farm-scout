@@ -109,7 +109,8 @@ class MissionsRequest(BaseModel):
 # Demo AOI detection
 # ---------------------------------------------------------------------------
 DEMO_AOIS = [
-    {"name": "almonds", "center": (-121.87, 38.72), "file": "analyze_demo.json"},
+    {"name": "almonds_knights_landing", "center": (-121.71, 38.81), "file": "analyze_demo.json"},
+    {"name": "almonds_original", "center": (-121.87, 38.72), "file": "analyze_demo.json"},
 ]
 DEMO_AOI_TOLERANCE = 0.05  # degrees — ~5km radius
 
