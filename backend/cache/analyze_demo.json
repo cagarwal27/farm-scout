@@ -1,0 +1,140 @@
+{
+  "field": {
+    "location": "Yolo County, CA",
+    "crop": "Almond",
+    "area_acres": 412.5,
+    "date_start": "2024-07-01",
+    "date_end": "2024-07-14"
+  },
+  "summary": {
+    "clusters_found": 6,
+    "total_affected_acres": 12.8,
+    "avg_ndvi_drop": -0.17,
+    "max_ndvi_drop": -0.24
+  },
+  "hotspots": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[
+            [-121.8745, 38.7210],
+            [-121.8720, 38.7210],
+            [-121.8720, 38.7190],
+            [-121.8745, 38.7190],
+            [-121.8745, 38.7210]
+          ]]
+        },
+        "properties": {
+          "cluster_id": "A",
+          "area_acres": 3.2,
+          "ndvi_drop": -0.24,
+          "severity": "high",
+          "centroid": [-121.8732, 38.7200]
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[
+            [-121.8690, 38.7175],
+            [-121.8670, 38.7175],
+            [-121.8670, 38.7160],
+            [-121.8690, 38.7160],
+            [-121.8690, 38.7175]
+          ]]
+        },
+        "properties": {
+          "cluster_id": "B",
+          "area_acres": 2.1,
+          "ndvi_drop": -0.19,
+          "severity": "high",
+          "centroid": [-121.8680, 38.7168]
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[
+            [-121.8760, 38.7155],
+            [-121.8745, 38.7155],
+            [-121.8745, 38.7142],
+            [-121.8760, 38.7142],
+            [-121.8760, 38.7155]
+          ]]
+        },
+        "properties": {
+          "cluster_id": "C",
+          "area_acres": 2.4,
+          "ndvi_drop": -0.16,
+          "severity": "medium",
+          "centroid": [-121.8752, 38.7148]
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[
+            [-121.8710, 38.7230],
+            [-121.8698, 38.7230],
+            [-121.8698, 38.7220],
+            [-121.8710, 38.7220],
+            [-121.8710, 38.7230]
+          ]]
+        },
+        "properties": {
+          "cluster_id": "D",
+          "area_acres": 1.8,
+          "ndvi_drop": -0.14,
+          "severity": "medium",
+          "centroid": [-121.8704, 38.7225]
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[
+            [-121.8665, 38.7205],
+            [-121.8650, 38.7205],
+            [-121.8650, 38.7195],
+            [-121.8665, 38.7195],
+            [-121.8665, 38.7205]
+          ]]
+        },
+        "properties": {
+          "cluster_id": "E",
+          "area_acres": 1.9,
+          "ndvi_drop": -0.13,
+          "severity": "medium",
+          "centroid": [-121.8658, 38.7200]
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[
+            [-121.8730, 38.7140],
+            [-121.8720, 38.7140],
+            [-121.8720, 38.7133],
+            [-121.8730, 38.7133],
+            [-121.8730, 38.7140]
+          ]]
+        },
+        "properties": {
+          "cluster_id": "F",
+          "area_acres": 1.4,
+          "ndvi_drop": -0.11,
+          "severity": "low",
+          "centroid": [-121.8725, 38.7137]
+        }
+      }
+    ]
+  }
+}
