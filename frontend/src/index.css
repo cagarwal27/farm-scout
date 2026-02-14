@@ -1,5 +1,12 @@
 @import "tailwindcss";
 @import "maplibre-gl/dist/maplibre-gl.css";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
+@theme {
+  --font-sans: 'Inter Variable', 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
+}
 
 html, body, #root {
   margin: 0;
@@ -7,5 +14,6 @@ html, body, #root {
   height: 100%;
   width: 100%;
   overflow: hidden;
-  background-color: #111827;
+  background-color: #0a0a0a;
+  font-family: 'Inter Variable', 'Inter', system-ui, sans-serif;
 }

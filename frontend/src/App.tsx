@@ -1,9 +1,9 @@
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect } from "react";
 import { MapView, type MapHandle } from "./components/MapView";
 import { SidePanel } from "./components/SidePanel";
 import { useAppState } from "./hooks/useAppState";
 import { useMapTransition } from "./hooks/useMapTransition";
-import { useOSRM } from "./hooks/useOSRM";
+import { useRoute } from "./hooks/useRoute";
 
 export default function App() {
   const mapHandle = useRef<MapHandle>(null);
@@ -18,48 +18,81 @@ export default function App() {
 
   const {
     state,
-    runAnalysis,
+    fetchAnalysis,
+    revealAnalysis,
     runWeather,
     runMissions,
     setRouteData,
-    setRouteLoading,
+    selectZone,
     showTicket,
+    nextTicketZone,
   } = useAppState();
 
-  const { runTransition, showRoute } = useMapTransition(mapRef);
-  const { fetchRoute } = useOSRM();
+  const { runTransition, showRoute } = useMapTransition(mapRef, selectZone);
+  const { buildRoute } = useRoute();
 
   const handleAnalyze = useCallback(async () => {
     getMapRef();
-    const data = await runAnalysis();
-    if (data) {
-      runTransition(data);
-    }
-  }, [runAnalysis, runTransition, getMapRef]);
 
-  const handleRoute = useCallback(async () => {
+    // 0ms — spinner starts (fetchAnalysis sets loading: true)
+    const data = await fetchAnalysis();
+    if (!data) return;
+
+    // Data is ready — start the map animation
+    runTransition(data);
+
+    // 2500ms — panel switches to analysis results (synced with map animation)
+    setTimeout(() => {
+      revealAnalysis();
+    }, 2500);
+  }, [fetchAnalysis, revealAnalysis, runTransition, getMapRef]);
+
+  const handleRoute = useCallback(() => {
     if (!state.missionsData) return;
     getMapRef();
-    setRouteLoading();
 
-    // Extract centroids in priority order — these come from Person A's /api/missions response
     const waypoints = state.missionsData.missions
       .sort((a, b) => a.priority - b.priority)
       .map((m) => m.centroid);
 
-    const routeData = await fetchRoute(waypoints);
+    const routeData = buildRoute(waypoints);
     setRouteData(routeData);
-
-    // Draw route + numbered markers on map
     showRoute(routeData, state.missionsData.missions);
-  }, [state.missionsData, fetchRoute, setRouteData, setRouteLoading, showRoute, getMapRef]);
+  }, [state.missionsData, buildRoute, setRouteData, showRoute, getMapRef]);
+
+  // Keyboard shortcuts: 1-5 advance the demo flow
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (state.loading) return;
+      switch (e.key) {
+        case "1":
+          if (state.panel === "field-info") handleAnalyze();
+          break;
+        case "2":
+          if (state.panel === "analysis") runWeather();
+          break;
+        case "3":
+          if (state.panel === "weather") runMissions();
+          break;
+        case "4":
+          if (state.panel === "missions" && !state.routeData) handleRoute();
+          break;
+        case "5":
+          if (state.panel === "missions" && state.routeData) showTicket();
+          break;
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [state.panel, state.loading, state.routeData, handleAnalyze, runWeather, runMissions, handleRoute, showTicket]);
 
   return (
-    <div className="flex h-screen w-screen bg-gray-900">
-      <div className="w-[70%] h-full relative">
-        <MapView ref={mapHandle} />
-      </div>
-      <div className="w-[30%] h-full border-l border-slate-800 overflow-y-auto">
+    <div className="relative h-screen w-screen bg-black">
+      {/* Full-bleed satellite map */}
+      <MapView ref={mapHandle} />
+
+      {/* Floating glass panel */}
+      <div className="absolute top-5 right-5 bottom-5 w-[380px] z-10">
         <SidePanel
           state={state}
           loading={state.loading}
@@ -68,6 +101,7 @@ export default function App() {
           onMissions={runMissions}
           onRoute={handleRoute}
           onTicket={showTicket}
+          onNextZone={nextTicketZone}
         />
       </div>
     </div>

@@ -15,6 +15,8 @@ export interface AppState {
   weatherData: WeatherResponse | null;
   missionsData: MissionsResponse | null;
   routeData: RouteData | null;
+  selectedZone: string | null;
+  ticketZoneIndex: number;
 }
 
 export function useAppState() {
@@ -25,21 +27,32 @@ export function useAppState() {
     weatherData: null,
     missionsData: null,
     routeData: null,
+    selectedZone: null,
+    ticketZoneIndex: 0,
   });
 
-  const runAnalysis = useCallback(async (): Promise<AnalyzeResponse> => {
+  const selectZone = useCallback((zoneId: string | null) => {
+    setState((s) => ({ ...s, selectedZone: zoneId }));
+  }, []);
+
+  /** Fetch analysis data — stores it but does NOT switch panel (spinner stays) */
+  const fetchAnalysis = useCallback(async (): Promise<AnalyzeResponse> => {
     setState((s) => ({ ...s, loading: true }));
     try {
       const data = await analyzeField();
-      setState((s) => ({ ...s, analyzeData: data, panel: "analysis", loading: false }));
+      setState((s) => ({ ...s, analyzeData: data }));
       return data;
     } catch {
-      setState((s) => ({ ...s, loading: false }));
       const { default: fallback } = await import("../mocks/mockAnalyze.json");
       const data = fallback as AnalyzeResponse;
-      setState((s) => ({ ...s, analyzeData: data, panel: "analysis", loading: false }));
+      setState((s) => ({ ...s, analyzeData: data }));
       return data;
     }
+  }, []);
+
+  /** Reveal analysis results — switches panel and clears spinner */
+  const revealAnalysis = useCallback(() => {
+    setState((s) => ({ ...s, panel: "analysis", loading: false }));
   }, []);
 
   const runWeather = useCallback(async () => {
@@ -84,7 +97,11 @@ export function useAppState() {
   }, []);
 
   const showTicket = useCallback(() => {
-    setState((s) => ({ ...s, panel: "ticket" }));
+    setState((s) => ({ ...s, panel: "ticket", ticketZoneIndex: 0 }));
+  }, []);
+
+  const nextTicketZone = useCallback(() => {
+    setState((s) => ({ ...s, ticketZoneIndex: s.ticketZoneIndex + 1 }));
   }, []);
 
   const reset = useCallback(() => {
@@ -95,17 +112,22 @@ export function useAppState() {
       weatherData: null,
       missionsData: null,
       routeData: null,
+      selectedZone: null,
+      ticketZoneIndex: 0,
     });
   }, []);
 
   return {
     state,
-    runAnalysis,
+    fetchAnalysis,
+    selectZone,
+    revealAnalysis,
     runWeather,
     runMissions,
     setRouteData,
     setRouteLoading,
     showTicket,
+    nextTicketZone,
     reset,
   };
 }

@@ -3,8 +3,8 @@ import maplibregl from "maplibre-gl";
 
 const MAP_CENTER: [number, number] = [-121.872, 38.718];
 const MAP_ZOOM = 14;
-const EOX_TILES =
-  "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg";
+const ESRI_TILES =
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 
 export interface MapHandle {
   getMap: () => maplibregl.Map | null;
@@ -28,10 +28,10 @@ export const MapView = forwardRef<MapHandle>(function MapView(_props, ref) {
         sources: {
           satellite: {
             type: "raster",
-            tiles: [EOX_TILES],
+            tiles: [ESRI_TILES],
             tileSize: 256,
-            attribution:
-              "&copy; EOX IT Services GmbH - Sentinel-2 cloudless",
+            maxzoom: 19,
+            attribution: "&copy; Esri, Maxar, Earthstar Geographics",
           },
         },
         layers: [
@@ -53,6 +53,40 @@ export const MapView = forwardRef<MapHandle>(function MapView(_props, ref) {
     });
 
     map.addControl(new maplibregl.NavigationControl(), "bottom-right");
+
+    // Field boundary — visible on load, grounds the viewer
+    map.on("load", () => {
+      map.addSource("field-boundary", {
+        type: "geojson",
+        data: {
+          type: "Feature",
+          geometry: {
+            type: "Polygon",
+            coordinates: [[
+              [-121.878, 38.724],
+              [-121.864, 38.724],
+              [-121.864, 38.712],
+              [-121.878, 38.712],
+              [-121.878, 38.724],
+            ]],
+          },
+          properties: {},
+        },
+      });
+
+      map.addLayer({
+        id: "field-boundary-line",
+        type: "line",
+        source: "field-boundary",
+        paint: {
+          "line-color": "#94a3b8",
+          "line-width": 1.5,
+          "line-dasharray": [4, 3],
+          "line-opacity": 0.6,
+        },
+      });
+    });
+
     mapRef.current = map;
 
     return () => {

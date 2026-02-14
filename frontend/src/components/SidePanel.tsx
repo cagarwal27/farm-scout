@@ -1,5 +1,7 @@
+import { useState, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import type { AppState } from "../hooks/useAppState";
-import type { Severity, RouteData } from "../types/api";
+import type { PanelState, Severity, RouteData } from "../types/api";
 
 interface SidePanelProps {
   state: AppState;
@@ -9,18 +11,34 @@ interface SidePanelProps {
   onMissions: () => void;
   onRoute: () => void;
   onTicket: () => void;
+  onNextZone: () => void;
 }
 
-const SEVERITY_COLORS: Record<Severity, string> = {
-  high: "text-red-500",
-  medium: "text-amber-500",
+const SEVERITY_COLOR: Record<Severity, string> = {
+  high: "text-red-400",
+  medium: "text-amber-400",
   low: "text-yellow-400",
 };
 
+const SEVERITY_GLOW: Record<Severity, string> = {
+  high: "drop-shadow-[0_0_6px_rgba(248,113,113,0.5)]",
+  medium: "drop-shadow-[0_0_6px_rgba(251,191,36,0.4)]",
+  low: "drop-shadow-[0_0_6px_rgba(250,204,21,0.3)]",
+};
+
 const SEVERITY_BG: Record<Severity, string> = {
-  high: "bg-red-500/20 text-red-400 border-red-500/30",
-  medium: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-  low: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+  high: "bg-red-500/10 text-red-400 border-red-500/20",
+  medium: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+  low: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+};
+
+const PANEL_STEPS: PanelState[] = ["field-info", "analysis", "weather", "missions", "ticket"];
+
+const panelAnim = {
+  initial: { opacity: 0, y: 16, filter: "blur(4px)" },
+  animate: { opacity: 1, y: 0, filter: "blur(0px)" },
+  exit: { opacity: 0, y: -12, filter: "blur(4px)" },
+  transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1] },
 };
 
 export function SidePanel({
@@ -31,73 +49,89 @@ export function SidePanel({
   onMissions,
   onRoute,
   onTicket,
+  onNextZone,
 }: SidePanelProps) {
+  const stepIndex = PANEL_STEPS.indexOf(state.panel);
+
   return (
-    <div className="h-full bg-gray-900 text-slate-100 p-6 flex flex-col">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-lg font-semibold tracking-tight">FarmSense</h1>
-        <p className="text-xs text-slate-400 mt-1">
-          Satellite Crop Intelligence
-        </p>
-      </div>
-      <div className="border-t border-slate-800 mb-6" />
+    <div className="h-full flex flex-col rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl backdrop-blur-2xl bg-black/30">
+      {/* Gradient accent line */}
+      <div className="h-[1px] w-full bg-gradient-to-r from-blue-500/40 via-emerald-500/40 to-blue-500/40" />
 
-      {/* Panel content based on state */}
-      <div className="flex-1 overflow-y-auto">
-        {state.panel === "field-info" && <FieldInfo />}
-        {state.panel === "analysis" && state.analyzeData && (
-          <AnalysisResults data={state.analyzeData} />
-        )}
-        {state.panel === "weather" && state.weatherData && (
-          <WeatherContext data={state.weatherData} />
-        )}
-        {state.panel === "missions" && state.missionsData && (
-          <MissionsPanel data={state.missionsData} routeData={state.routeData} />
-        )}
-        {state.panel === "ticket" && state.missionsData && (
-          <FieldTicket missions={state.missionsData.missions} />
-        )}
-      </div>
+      <div className="flex flex-col flex-1 p-5 overflow-hidden">
+        {/* Header */}
+        <div className="mb-4">
+          <h1 className="text-base font-semibold tracking-tight text-white/90">
+            FarmSense
+          </h1>
+          <p className="text-[11px] text-white/30 mt-0.5 tracking-wide">
+            Satellite Crop Intelligence
+          </p>
+        </div>
 
-      {/* Action buttons */}
-      <div className="mt-4 space-y-2">
-        {state.panel === "field-info" && (
-          <ActionButton
-            label="Analyze Field Health"
-            loading={loading}
-            onClick={onAnalyze}
-          />
-        )}
-        {state.panel === "analysis" && (
-          <ActionButton
-            label="Explain Anomalies"
-            loading={loading}
-            onClick={onWeather}
-          />
-        )}
-        {state.panel === "weather" && (
-          <ActionButton
-            label="Generate Missions"
-            loading={loading}
-            onClick={onMissions}
-          />
-        )}
-        {state.panel === "missions" && !state.routeData && (
-          <ActionButton
-            label="Optimize Route"
-            loading={loading}
-            onClick={onRoute}
-            variant="green"
-          />
-        )}
-        {state.panel === "missions" && state.routeData && (
-          <ActionButton
-            label="Create Field Ticket"
-            loading={loading}
-            onClick={onTicket}
-          />
-        )}
+        {/* Step progress bar */}
+        <div className="flex items-center gap-1.5 mb-5">
+          {PANEL_STEPS.map((step, i) => (
+            <div
+              key={step}
+              className={`h-[3px] flex-1 rounded-full transition-all duration-500 ${
+                i < stepIndex
+                  ? "bg-emerald-500/60"
+                  : i === stepIndex
+                    ? "bg-blue-500/80"
+                    : "bg-white/[0.06]"
+              }`}
+            />
+          ))}
+        </div>
+
+        {/* Panel content — animated transitions, no scroll */}
+        <div className="flex-1 overflow-hidden">
+          <AnimatePresence mode="wait">
+            <motion.div key={state.panel} {...panelAnim} className="h-full">
+              {state.panel === "field-info" && <FieldInfo />}
+              {state.panel === "analysis" && state.analyzeData && (
+                <AnalysisResults data={state.analyzeData} />
+              )}
+              {state.panel === "weather" && state.weatherData && (
+                <WeatherContext data={state.weatherData} />
+              )}
+              {state.panel === "missions" && state.missionsData && (
+                <MissionsPanel
+                  data={state.missionsData}
+                  routeData={state.routeData}
+                  selectedZone={state.selectedZone}
+                />
+              )}
+              {state.panel === "ticket" && state.missionsData && (
+                <FieldTicket
+                  missions={state.missionsData.missions}
+                  zoneIndex={state.ticketZoneIndex}
+                  onNextZone={onNextZone}
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Action buttons */}
+        <div className="mt-4 pt-3 border-t border-white/[0.06]">
+          {state.panel === "field-info" && (
+            <ActionButton label="Analyze Field Health" loading={loading} onClick={onAnalyze} />
+          )}
+          {state.panel === "analysis" && (
+            <ActionButton label="Explain Anomalies" loading={loading} onClick={onWeather} />
+          )}
+          {state.panel === "weather" && (
+            <ActionButton label="Generate Missions" loading={loading} onClick={onMissions} />
+          )}
+          {state.panel === "missions" && !state.routeData && (
+            <ActionButton label="Optimize Route" loading={loading} onClick={onRoute} variant="green" />
+          )}
+          {state.panel === "missions" && state.routeData && (
+            <ActionButton label="Create Field Ticket" loading={loading} onClick={onTicket} />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -107,7 +141,7 @@ export function SidePanel({
 
 function FieldInfo() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <InfoRow label="Location" value="Yolo County, CA" />
       <InfoRow label="Crop" value="Almond" />
       <InfoRow label="Analysis Period" value="Jul 1 – Jul 14, 2024" mono />
@@ -122,18 +156,15 @@ function AnalysisResults({
   data: NonNullable<AppState["analyzeData"]>;
 }) {
   return (
-    <div className="space-y-5">
-      <p className="text-xs text-slate-400">
+    <div className="space-y-4">
+      <p className="text-[11px] text-white/40">
         {data.summary.clusters_found} anomaly clusters detected across{" "}
         {data.summary.total_affected_acres} acres
       </p>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2">
         <StatCard label="Clusters" value={data.summary.clusters_found} />
-        <StatCard
-          label="Affected"
-          value={`${data.summary.total_affected_acres} ac`}
-        />
+        <StatCard label="Affected" value={`${data.summary.total_affected_acres} ac`} />
         <StatCard
           label="Avg NDVI Drop"
           value={`${Math.round(data.summary.avg_ndvi_drop * 100)}%`}
@@ -146,11 +177,11 @@ function AnalysisResults({
         />
       </div>
 
-      <div className="border-t border-slate-800 pt-4">
-        <p className="text-xs text-slate-500 uppercase tracking-wider mb-3">
+      <div className="pt-3 border-t border-white/[0.06]">
+        <p className="text-[10px] text-white/30 uppercase tracking-widest mb-2.5">
           Hotspot Zones
         </p>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {data.hotspots.features.map((f) => {
             const p = f.properties as {
               cluster_id: string;
@@ -161,17 +192,17 @@ function AnalysisResults({
             return (
               <div
                 key={p.cluster_id}
-                className="flex items-center justify-between text-sm py-1.5 px-2 rounded bg-slate-800/50"
+                className="flex items-center justify-between text-[13px] py-1.5 px-2.5 rounded-lg bg-white/[0.03] border border-white/[0.04]"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <span
-                    className={`text-xs font-mono font-bold ${SEVERITY_COLORS[p.severity]}`}
+                    className={`text-xs font-mono font-bold ${SEVERITY_COLOR[p.severity]} ${SEVERITY_GLOW[p.severity]}`}
                   >
                     {p.cluster_id}
                   </span>
-                  <span className="text-slate-300">{p.area_acres} ac</span>
+                  <span className="text-white/60">{p.area_acres} ac</span>
                 </div>
-                <span className={`text-xs font-mono ${SEVERITY_COLORS[p.severity]}`}>
+                <span className={`text-xs font-mono font-medium ${SEVERITY_COLOR[p.severity]}`}>
                   {Math.round(p.ndvi_drop * 100)}%
                 </span>
               </div>
@@ -191,28 +222,30 @@ function WeatherContext({
   const maxTemp = Math.max(...data.daily.map((d) => d.temp_max_f));
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Mini temperature bars */}
       <div>
-        <p className="text-xs text-slate-500 uppercase tracking-wider mb-3">
+        <p className="text-[10px] text-white/30 uppercase tracking-widest mb-2.5">
           Temperature (14 days)
         </p>
-        <div className="flex items-end gap-1 h-20">
+        <div className="flex items-end gap-[3px] h-16 px-1">
           {data.daily.map((d) => {
             const pct = (d.temp_max_f / maxTemp) * 100;
             const isHot = d.temp_max_f >= 100;
             return (
               <div
                 key={d.date}
-                className="flex-1 flex flex-col items-center gap-1"
+                className="flex-1 flex flex-col items-center gap-0.5"
               >
                 <div
-                  className={`w-full rounded-t ${isHot ? "bg-red-500" : "bg-blue-500/60"}`}
+                  className={`w-full rounded-sm ${
+                    isHot
+                      ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]"
+                      : "bg-blue-500/50"
+                  }`}
                   style={{ height: `${pct}%` }}
                 />
-                <span className="text-[8px] text-slate-500">
-                  {d.date.slice(8)}
-                </span>
+                <span className="text-[7px] text-white/25">{d.date.slice(8)}</span>
               </div>
             );
           })}
@@ -221,14 +254,14 @@ function WeatherContext({
 
       {/* Alerts */}
       <div>
-        <p className="text-xs text-slate-500 uppercase tracking-wider mb-3">
+        <p className="text-[10px] text-white/30 uppercase tracking-widest mb-2">
           Alerts
         </p>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {data.alerts.map((a, i) => (
             <div
               key={i}
-              className={`text-xs px-3 py-2 rounded border ${SEVERITY_BG[a.severity]}`}
+              className={`text-[11px] px-3 py-2 rounded-lg border ${SEVERITY_BG[a.severity]}`}
             >
               {a.label}
             </div>
@@ -237,22 +270,25 @@ function WeatherContext({
       </div>
 
       {/* Correlation */}
-      <div className="border-t border-slate-800 pt-4">
-        <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">
+      <div className="pt-3 border-t border-white/[0.06]">
+        <p className="text-[10px] text-white/30 uppercase tracking-widest mb-2">
           Correlated Stress Factors
         </p>
-        <p className="text-sm">
-          <span className="text-red-400">{data.correlation.primary}</span>
-          {" (primary)"}
+        <p className="text-[13px]">
+          <span className="text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.4)]">
+            {data.correlation.primary}
+          </span>
+          <span className="text-white/30 ml-1.5">(primary)</span>
         </p>
-        <p className="text-sm text-slate-400">
-          {data.correlation.secondary} (secondary)
+        <p className="text-[13px] text-white/50 mt-0.5">
+          {data.correlation.secondary}
+          <span className="text-white/30 ml-1.5">(secondary)</span>
         </p>
         <span
-          className={`inline-block mt-2 text-xs px-2 py-0.5 rounded border ${
+          className={`inline-block mt-2 text-[10px] px-2 py-0.5 rounded-md border ${
             data.correlation.confidence === "high"
-              ? "border-green-500/30 text-green-400"
-              : "border-amber-500/30 text-amber-400"
+              ? "border-emerald-500/20 text-emerald-400 bg-emerald-500/10"
+              : "border-amber-500/20 text-amber-400 bg-amber-500/10"
           }`}
         >
           {data.correlation.confidence} confidence
@@ -265,75 +301,76 @@ function WeatherContext({
 function MissionsPanel({
   data,
   routeData,
+  selectedZone,
 }: {
   data: NonNullable<AppState["missionsData"]>;
   routeData: RouteData | null;
+  selectedZone: string | null;
 }) {
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">
+    <div className="space-y-2.5">
+      <p className="text-[10px] text-white/30 uppercase tracking-widest mb-1">
         Scout Missions
       </p>
+
+      {/* Compact mission rows — no checklists, no scroll needed */}
       {data.missions.map((m) => {
         const severity: Severity =
           m.ndvi_drop <= -0.2 ? "high" : m.ndvi_drop <= -0.15 ? "medium" : "low";
+        const isSelected = selectedZone === m.zone_id;
         return (
           <div
             key={m.zone_id}
-            className="bg-slate-800/50 rounded p-3 space-y-2"
+            className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-300 ${
+              isSelected
+                ? "bg-white/[0.08] ring-1 ring-blue-500/40"
+                : "bg-white/[0.03] border border-white/[0.04]"
+            }`}
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span
-                  className={`text-sm font-mono font-bold ${SEVERITY_COLORS[severity]}`}
-                >
-                  Zone {m.zone_id}
-                </span>
-                <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">
-                  P{m.priority}
-                </span>
-              </div>
-              <span className="text-xs text-slate-400 font-mono">
-                {m.area_acres} ac | {Math.round(m.ndvi_drop * 100)}%
+            <div className="flex items-center gap-2.5">
+              <span
+                className={`text-sm font-mono font-bold ${SEVERITY_COLOR[severity]} ${SEVERITY_GLOW[severity]}`}
+              >
+                {m.zone_id}
+              </span>
+              <span className="text-[10px] bg-blue-500/15 text-blue-400 px-1.5 py-0.5 rounded-md font-medium">
+                P{m.priority}
               </span>
             </div>
-            <div className="space-y-1">
-              {m.checklist.map((item, i) => (
-                <label key={i} className="flex items-start gap-2 text-xs text-slate-300">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 accent-emerald-500"
-                  />
-                  {item}
-                </label>
-              ))}
+            <div className="flex items-center gap-3 text-[11px] font-mono text-white/40">
+              <span>{m.area_acres} ac</span>
+              <span className={SEVERITY_COLOR[severity]}>
+                {Math.round(m.ndvi_drop * 100)}%
+              </span>
             </div>
           </div>
         );
       })}
 
       {/* Summary bar */}
-      <div className="border-t border-slate-800 pt-3 flex items-center justify-between text-xs text-slate-400 font-mono">
+      <div className="pt-2.5 mt-1 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-white/30 font-mono">
         <span>{data.summary.total_zones} zones</span>
         <span>~{data.summary.estimated_hours} hrs</span>
         <span>{data.summary.crew_required} crew</span>
       </div>
 
-      {/* Route summary (shown after route is fetched) */}
+      {/* Route summary */}
       {routeData && (
-        <div className="border-t border-slate-800 pt-3">
-          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded p-3">
-            <p className="text-xs text-emerald-400 uppercase tracking-wider mb-1">
+        <div className="pt-2.5 border-t border-white/[0.06]">
+          <div className="bg-emerald-500/[0.07] border border-emerald-500/20 rounded-lg p-3">
+            <p className="text-[10px] text-emerald-400/70 uppercase tracking-widest mb-1.5">
               Optimal Route
             </p>
             <div className="flex items-center justify-between text-sm font-mono">
-              <span className="text-emerald-300">{routeData.distance_km} km</span>
-              <span className="text-slate-400">|</span>
-              <span className="text-emerald-300">{routeData.duration_min} min</span>
+              <span className="text-emerald-400 drop-shadow-[0_0_6px_rgba(16,185,129,0.4)]">
+                {routeData.distance_km} km
+              </span>
+              <span className="text-white/15">|</span>
+              <span className="text-emerald-400 drop-shadow-[0_0_6px_rgba(16,185,129,0.4)]">
+                {routeData.duration_min} min
+              </span>
             </div>
-            {routeData.isFallback && (
-              <p className="text-[10px] text-slate-500 mt-1">Estimated (straight-line)</p>
-            )}
+            <p className="text-[9px] text-white/20 mt-1">Field path estimate</p>
           </div>
         </div>
       )}
@@ -343,37 +380,134 @@ function MissionsPanel({
 
 function FieldTicket({
   missions,
+  zoneIndex,
+  onNextZone,
 }: {
   missions: NonNullable<AppState["missionsData"]>["missions"];
+  zoneIndex: number;
+  onNextZone: () => void;
 }) {
-  const m = missions[0];
+  const [checked, setChecked] = useState<boolean[]>([]);
+  const [photoUploaded, setPhotoUploaded] = useState(false);
+
+  const isAllDone = zoneIndex >= missions.length;
+  const m = isAllDone ? null : missions[zoneIndex];
+
+  // Reset checklist state when zone changes
+  useEffect(() => {
+    if (m) {
+      setChecked(new Array(m.checklist.length).fill(false));
+      setPhotoUploaded(false);
+    }
+  }, [zoneIndex, m?.zone_id]);
+
+  // All zones completed
+  if (isAllDone) {
+    return (
+      <div className="space-y-5 text-center py-6">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/15 border-2 border-emerald-500/60 mx-auto shadow-[0_0_24px_rgba(16,185,129,0.2)]">
+          <svg className="w-8 h-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <div>
+          <p className="text-lg font-bold text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.4)]">
+            All {missions.length} Zones Complete
+          </p>
+          <p className="text-[11px] text-white/30 mt-1.5">Field scouting mission finished</p>
+        </div>
+        <div className="grid grid-cols-5 gap-2 max-w-[240px] mx-auto">
+          {missions.map((mi) => (
+            <div key={mi.zone_id} className="text-center">
+              <div className="w-7 h-7 rounded-full bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center mx-auto">
+                <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <p className="text-[9px] text-white/25 mt-1">{mi.zone_id}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (!m) return null;
 
+  const allChecked = checked.length > 0 && checked.every(Boolean);
+  const isComplete = allChecked && photoUploaded;
+  const isLastZone = zoneIndex === missions.length - 1;
+
+  const toggleCheck = (index: number) => {
+    setChecked((prev) => {
+      const next = [...prev];
+      next[index] = !next[index];
+      return next;
+    });
+  };
+
   return (
-    <div className="space-y-4">
-      <p className="text-xs text-slate-500 uppercase tracking-wider">
-        Field Ticket — Zone {m.zone_id}
+    <div className="space-y-3">
+      {/* Zone progress indicator */}
+      <div className="flex items-center gap-1.5">
+        {missions.map((mi, i) => (
+          <div
+            key={mi.zone_id}
+            className={`h-[3px] flex-1 rounded-full transition-all duration-500 ${
+              i < zoneIndex
+                ? "bg-emerald-500/60"
+                : i === zoneIndex
+                  ? "bg-blue-500/80"
+                  : "bg-white/[0.06]"
+            }`}
+          />
+        ))}
+      </div>
+      <p className="text-[10px] text-white/30 uppercase tracking-widest">
+        Zone {m.zone_id} — {zoneIndex + 1} of {missions.length}
       </p>
-      <div className="bg-slate-800 rounded-lg p-4 space-y-4 max-w-xs mx-auto">
+
+      <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 space-y-3">
+        {/* Zone header */}
         <div className="text-center">
-          <span className="text-2xl font-bold text-red-400">
-            Zone {m.zone_id}
-          </span>
-          <p className="text-xs text-slate-400 font-mono mt-1">
-            {m.centroid[1].toFixed(4)}N, {Math.abs(m.centroid[0]).toFixed(4)}W
-          </p>
+          {isComplete ? (
+            <div className="space-y-2">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500/15 border-2 border-emerald-500/60 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+                <svg className="w-6 h-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <p className="text-base font-bold text-emerald-400 drop-shadow-[0_0_6px_rgba(16,185,129,0.4)]">
+                Zone {m.zone_id} Complete
+              </p>
+            </div>
+          ) : (
+            <>
+              <span className="text-xl font-bold text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.4)]">
+                Zone {m.zone_id}
+              </span>
+              <p className="text-[11px] text-white/30 font-mono mt-1">
+                {m.centroid[1].toFixed(4)}N, {Math.abs(m.centroid[0]).toFixed(4)}W
+              </p>
+            </>
+          )}
         </div>
 
-        <div className="border-t border-slate-700" />
+        <div className="border-t border-white/[0.06]" />
 
-        <div className="space-y-2">
+        {/* Interactive checklist */}
+        <div className="space-y-1.5">
           {m.checklist.map((item, i) => (
             <label
               key={i}
-              className="flex items-start gap-2 text-sm text-slate-200"
+              className={`flex items-start gap-2 text-[13px] cursor-pointer transition-colors ${
+                checked[i] ? "text-white/25 line-through" : "text-white/70"
+              }`}
             >
               <input
                 type="checkbox"
+                checked={checked[i] || false}
+                onChange={() => toggleCheck(i)}
                 className="mt-0.5 accent-emerald-500"
               />
               {item}
@@ -381,9 +515,37 @@ function FieldTicket({
           ))}
         </div>
 
-        <button className="w-full py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded transition-colors">
-          Upload Photo
-        </button>
+        {/* Photo upload */}
+        {!photoUploaded ? (
+          <button
+            onClick={() => setPhotoUploaded(true)}
+            className="w-full py-2 bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.08] text-white/50 text-[13px] rounded-lg transition-colors"
+          >
+            Upload Photo
+          </button>
+        ) : (
+          <div className="space-y-1.5">
+            <div className="w-full h-20 bg-white/[0.03] border border-white/[0.06] rounded-lg flex items-center justify-center">
+              <div className="text-center">
+                <svg className="w-6 h-6 text-emerald-400 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.91M6.75 9a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" />
+                </svg>
+                <p className="text-[10px] text-white/30 mt-0.5">canopy_NW_01.jpg</p>
+              </div>
+            </div>
+            <p className="text-[9px] text-emerald-400/70 text-center">Photo captured</p>
+          </div>
+        )}
+
+        {/* Next zone button */}
+        {isComplete && (
+          <button
+            onClick={onNextZone}
+            className="w-full py-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-[13px] font-medium rounded-lg transition-all shadow-[0_0_16px_rgba(16,185,129,0.2)]"
+          >
+            {isLastZone ? "Finish All Zones" : `Next Zone: ${missions[zoneIndex + 1].zone_id}`}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -402,8 +564,8 @@ function InfoRow({
 }) {
   return (
     <div>
-      <p className="text-xs text-slate-500 uppercase tracking-wider">{label}</p>
-      <p className={`text-sm font-medium mt-1 ${mono ? "font-mono" : ""}`}>
+      <p className="text-[10px] text-white/30 uppercase tracking-widest">{label}</p>
+      <p className={`text-[15px] font-medium mt-1 text-white/80 ${mono ? "font-mono" : ""}`}>
         {value}
       </p>
     </div>
@@ -420,10 +582,18 @@ function StatCard({
   negative?: boolean;
 }) {
   return (
-    <div className="bg-slate-800/50 rounded p-3">
-      <p className="text-xs text-slate-500">{label}</p>
+    <div
+      className={`rounded-lg p-2.5 bg-white/[0.03] border border-white/[0.05] ${
+        negative ? "border-l-2 border-l-red-500/40" : ""
+      }`}
+    >
+      <p className="text-[10px] text-white/30">{label}</p>
       <p
-        className={`text-lg font-mono font-bold mt-1 ${negative ? "text-red-400" : "text-slate-100"}`}
+        className={`text-base font-mono font-bold mt-0.5 ${
+          negative
+            ? "text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.4)]"
+            : "text-white/80"
+        }`}
       >
         {value}
       </p>
@@ -444,29 +614,18 @@ function ActionButton({
 }) {
   const colors =
     variant === "green"
-      ? "bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/50"
-      : "bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50";
+      ? "bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 disabled:from-emerald-600/40 disabled:to-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.15)]"
+      : "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 disabled:from-blue-600/40 disabled:to-blue-500/40 shadow-[0_0_20px_rgba(59,130,246,0.15)]";
 
   return (
     <button
-      className={`w-full py-3 ${colors} disabled:cursor-not-allowed text-white text-sm font-medium rounded transition-colors flex items-center justify-center gap-2`}
+      className={`w-full py-2.5 ${colors} disabled:cursor-not-allowed text-white text-[13px] font-medium rounded-xl transition-all flex items-center justify-center gap-2`}
       onClick={onClick}
       disabled={loading}
     >
       {loading && (
-        <svg
-          className="animate-spin h-4 w-4"
-          viewBox="0 0 24 24"
-          fill="none"
-        >
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-          />
+        <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path
             className="opacity-75"
             fill="currentColor"

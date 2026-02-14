@@ -50,8 +50,13 @@ function createPulsingDot(map: maplibregl.Map, size = 100) {
   } as maplibregl.StyleImageInterface & { context: CanvasRenderingContext2D };
 }
 
-export function useMapTransition(mapRef: React.RefObject<maplibregl.Map | null>) {
+export function useMapTransition(
+  mapRef: React.RefObject<maplibregl.Map | null>,
+  onZoneClick?: (zoneId: string) => void
+) {
   const sourcesAdded = useRef(false);
+  const onZoneClickRef = useRef(onZoneClick);
+  onZoneClickRef.current = onZoneClick;
 
   /** Add the hotspot + pulsing dot sources/layers (hidden initially) */
   const prepareLayers = useCallback((map: maplibregl.Map) => {
@@ -124,6 +129,22 @@ export function useMapTransition(mapRef: React.RefObject<maplibregl.Map | null>)
         "icon-opacity": 0,
         "icon-opacity-transition": { duration: 800, delay: 0 },
       },
+    });
+
+    // Click handler for hotspot zones
+    map.on("click", "hotspot-fill", (e) => {
+      const feature = e.features?.[0];
+      if (feature?.properties?.cluster_id) {
+        onZoneClickRef.current?.(feature.properties.cluster_id);
+      }
+    });
+
+    // Pointer cursor on hover
+    map.on("mouseenter", "hotspot-fill", () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", "hotspot-fill", () => {
+      map.getCanvas().style.cursor = "";
     });
   }, []);
 
