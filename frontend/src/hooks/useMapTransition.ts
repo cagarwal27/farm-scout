@@ -213,6 +213,30 @@ export function useMapTransition(
       const map = mapRef.current;
       if (!map) return;
 
+      // Create direction-arrow image (chevron rotated along the line by MapLibre)
+      if (!map.hasImage("route-arrow")) {
+        const s = 24;
+        const canvas = document.createElement("canvas");
+        canvas.width = s;
+        canvas.height = s;
+        const ctx = canvas.getContext("2d")!;
+        ctx.clearRect(0, 0, s, s);
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(s * 0.3, s * 0.2);
+        ctx.lineTo(s * 0.7, s * 0.5);
+        ctx.lineTo(s * 0.3, s * 0.8);
+        ctx.stroke();
+        map.addImage("route-arrow", {
+          width: s,
+          height: s,
+          data: new Uint8Array(ctx.getImageData(0, 0, s, s).data.buffer),
+        });
+      }
+
       // Add route source if not present
       if (!map.getSource("route")) {
         map.addSource("route", {
@@ -220,31 +244,62 @@ export function useMapTransition(
           data: { type: "Feature", geometry: routeData.geometry, properties: {} },
         });
 
-        // Route glow (wide, blurred, underneath)
+        // 1. Dark shadow underneath for depth
+        map.addLayer({
+          id: "route-shadow",
+          type: "line",
+          source: "route",
+          paint: {
+            "line-color": "#000000",
+            "line-width": 14,
+            "line-blur": 8,
+            "line-opacity": 0,
+            "line-opacity-transition": { duration: 1000, delay: 0 },
+          },
+        });
+
+        // 2. Outer neon glow
         map.addLayer({
           id: "route-glow",
           type: "line",
           source: "route",
           paint: {
             "line-color": "#00ffaa",
-            "line-width": 10,
-            "line-blur": 5,
+            "line-width": 8,
+            "line-blur": 6,
             "line-opacity": 0,
             "line-opacity-transition": { duration: 1000, delay: 0 },
           },
         });
 
-        // Route line (dashed, on top)
+        // 3. Solid bright core line
         map.addLayer({
           id: "route-line",
           type: "line",
           source: "route",
           paint: {
-            "line-color": "#00ffaa",
-            "line-width": 3,
-            "line-dasharray": [2, 1],
+            "line-color": "#6ee7b7",
+            "line-width": 2.5,
             "line-opacity": 0,
-            "line-opacity-transition": { duration: 1000, delay: 0 },
+            "line-opacity-transition": { duration: 800, delay: 0 },
+          },
+        });
+
+        // 4. Direction arrows along the path
+        map.addLayer({
+          id: "route-arrows",
+          type: "symbol",
+          source: "route",
+          layout: {
+            "symbol-placement": "line",
+            "symbol-spacing": 100,
+            "icon-image": "route-arrow",
+            "icon-size": 0.7,
+            "icon-allow-overlap": true,
+          },
+          paint: {
+            "icon-opacity": 0,
+            "icon-opacity-transition": { duration: 600, delay: 0 },
           },
         });
       } else {
@@ -266,6 +321,20 @@ export function useMapTransition(
         map.addSource("zone-markers", {
           type: "geojson",
           data: { type: "FeatureCollection", features: markerFeatures },
+        });
+
+        // Soft glow halo behind markers
+        map.addLayer({
+          id: "zone-marker-glow",
+          type: "circle",
+          source: "zone-markers",
+          paint: {
+            "circle-radius": 22,
+            "circle-color": "#00ffaa",
+            "circle-blur": 1,
+            "circle-opacity": 0,
+            "circle-opacity-transition": { duration: 600, delay: 0 },
+          },
         });
 
         // Green circle background
@@ -309,7 +378,7 @@ export function useMapTransition(
         });
       }
 
-      // Animate: pull camera back to see full route, then fade layers in
+      // Camera pulls back to reveal full route
       map.flyTo({
         center: FIELD_CENTER,
         zoom: 14.5,
@@ -318,14 +387,21 @@ export function useMapTransition(
         duration: 1500,
       });
 
-      // Fade in route after camera starts moving
+      // Staggered fade-in: shadow → glow → core
       setTimeout(() => {
-        map.setPaintProperty("route-glow", "line-opacity", 0.3);
-        map.setPaintProperty("route-line", "line-opacity", 0.9);
+        map.setPaintProperty("route-shadow", "line-opacity", 0.5);
+        map.setPaintProperty("route-glow", "line-opacity", 0.35);
+        map.setPaintProperty("route-line", "line-opacity", 1);
       }, 300);
 
-      // Fade in numbered markers after route appears
+      // Direction arrows fade in after core
       setTimeout(() => {
+        map.setPaintProperty("route-arrows", "icon-opacity", 0.85);
+      }, 600);
+
+      // Numbered markers with glow halos
+      setTimeout(() => {
+        map.setPaintProperty("zone-marker-glow", "circle-opacity", 0.15);
         map.setPaintProperty("zone-marker-bg", "circle-opacity", 1);
         map.setPaintProperty("zone-marker-bg", "circle-stroke-opacity", 1);
         map.setPaintProperty("zone-marker-label", "text-opacity", 1);
@@ -354,17 +430,49 @@ export function useMapTransition(
       map.setPaintProperty("centroid-dots", "icon-opacity", 0);
     }
 
-    // Clean up route layers if they exist
+    // Clean up route layers
     if (map.getSource("route")) {
+      map.setPaintProperty("route-shadow", "line-opacity", 0);
       map.setPaintProperty("route-glow", "line-opacity", 0);
       map.setPaintProperty("route-line", "line-opacity", 0);
+      map.setPaintProperty("route-arrows", "icon-opacity", 0);
     }
     if (map.getSource("zone-markers")) {
+      map.setPaintProperty("zone-marker-glow", "circle-opacity", 0);
       map.setPaintProperty("zone-marker-bg", "circle-opacity", 0);
       map.setPaintProperty("zone-marker-bg", "circle-stroke-opacity", 0);
       map.setPaintProperty("zone-marker-label", "text-opacity", 0);
     }
   }, [mapRef]);
 
-  return { runTransition, showRoute, resetMap };
+  /** Zoom into a specific zone centroid — used during field ticket */
+  const flyToZone = useCallback(
+    (centroid: [number, number]) => {
+      const map = mapRef.current;
+      if (!map) return;
+      map.flyTo({
+        center: centroid,
+        zoom: 17,
+        pitch: 50,
+        bearing: -15,
+        duration: 1500,
+      });
+    },
+    [mapRef]
+  );
+
+  /** Zoom back out to see all zones — used when all zones complete */
+  const flyToOverview = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.flyTo({
+      center: FIELD_CENTER,
+      zoom: 14.5,
+      pitch: 30,
+      bearing: -10,
+      duration: 1500,
+    });
+  }, [mapRef]);
+
+  return { runTransition, showRoute, resetMap, flyToZone, flyToOverview };
 }
