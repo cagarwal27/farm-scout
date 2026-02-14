@@ -8,6 +8,10 @@
   --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
 }
 
+button {
+  cursor: pointer;
+}
+
 html, body, #root {
   margin: 0;
   padding: 0;

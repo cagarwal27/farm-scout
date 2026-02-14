@@ -38,7 +38,7 @@ const panelAnim = {
   initial: { opacity: 0, y: 16, filter: "blur(4px)" },
   animate: { opacity: 1, y: 0, filter: "blur(0px)" },
   exit: { opacity: 0, y: -12, filter: "blur(4px)" },
-  transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1] },
+  transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1] as [number, number, number, number] },
 };
 
 export function SidePanel({
@@ -378,6 +378,17 @@ function MissionsPanel({
   );
 }
 
+/** AI findings per zone — ties the whole story together */
+const ZONE_FINDINGS: Record<string, string> = {
+  A: "Severe leaf scorch from sustained heat exposure. Recommend immediate irrigation adjustment.",
+  B: "Canopy stress with early mite activity detected. Recommend targeted pest treatment.",
+  C: "Moderate wilting from irrigation deficit. Drip line repair needed in rows 34-38.",
+  D: "Minor leaf curling observed. Monitor over next 7 days, no immediate action required.",
+  E: "Mild canopy thinning consistent with heat stress. Within acceptable recovery range.",
+};
+
+type InspectionPhase = "idle" | "checking" | "photo" | "finding" | "complete";
+
 function FieldTicket({
   missions,
   zoneIndex,
@@ -387,19 +398,43 @@ function FieldTicket({
   zoneIndex: number;
   onNextZone: () => void;
 }) {
-  const [checked, setChecked] = useState<boolean[]>([]);
-  const [photoUploaded, setPhotoUploaded] = useState(false);
+  const [phase, setPhase] = useState<InspectionPhase>("idle");
+  const [checkedCount, setCheckedCount] = useState(0);
 
   const isAllDone = zoneIndex >= missions.length;
   const m = isAllDone ? null : missions[zoneIndex];
 
-  // Reset checklist state when zone changes
+  // Reset when zone changes
   useEffect(() => {
-    if (m) {
-      setChecked(new Array(m.checklist.length).fill(false));
-      setPhotoUploaded(false);
+    setPhase("idle");
+    setCheckedCount(0);
+  }, [zoneIndex]);
+
+  // Auto-animation: check items one by one
+  useEffect(() => {
+    if (phase !== "checking" || !m) return;
+    if (checkedCount < m.checklist.length) {
+      const timer = setTimeout(() => setCheckedCount((c) => c + 1), 300);
+      return () => clearTimeout(timer);
     }
-  }, [zoneIndex, m?.zone_id]);
+    // All items checked → photo phase
+    const timer = setTimeout(() => setPhase("photo"), 400);
+    return () => clearTimeout(timer);
+  }, [phase, checkedCount, m]);
+
+  // Photo → finding
+  useEffect(() => {
+    if (phase !== "photo") return;
+    const timer = setTimeout(() => setPhase("finding"), 800);
+    return () => clearTimeout(timer);
+  }, [phase]);
+
+  // Finding → complete
+  useEffect(() => {
+    if (phase !== "finding") return;
+    const timer = setTimeout(() => setPhase("complete"), 1000);
+    return () => clearTimeout(timer);
+  }, [phase]);
 
   // All zones completed
   if (isAllDone) {
@@ -434,21 +469,14 @@ function FieldTicket({
 
   if (!m) return null;
 
-  const allChecked = checked.length > 0 && checked.every(Boolean);
-  const isComplete = allChecked && photoUploaded;
+  const severity: Severity =
+    m.ndvi_drop <= -0.2 ? "high" : m.ndvi_drop <= -0.15 ? "medium" : "low";
   const isLastZone = zoneIndex === missions.length - 1;
-
-  const toggleCheck = (index: number) => {
-    setChecked((prev) => {
-      const next = [...prev];
-      next[index] = !next[index];
-      return next;
-    });
-  };
+  const finding = ZONE_FINDINGS[m.zone_id] || "Assessment complete.";
 
   return (
     <div className="space-y-3">
-      {/* Zone progress indicator */}
+      {/* Zone progress bar */}
       <div className="flex items-center gap-1.5">
         {missions.map((mi, i) => (
           <div
@@ -469,82 +497,175 @@ function FieldTicket({
 
       <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 space-y-3">
         {/* Zone header */}
-        <div className="text-center">
-          {isComplete ? (
-            <div className="space-y-2">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500/15 border-2 border-emerald-500/60 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
-                <svg className="w-6 h-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <p className="text-base font-bold text-emerald-400 drop-shadow-[0_0_6px_rgba(16,185,129,0.4)]">
-                Zone {m.zone_id} Complete
-              </p>
-            </div>
-          ) : (
-            <>
-              <span className="text-xl font-bold text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.4)]">
-                Zone {m.zone_id}
-              </span>
-              <p className="text-[11px] text-white/30 font-mono mt-1">
-                {m.centroid[1].toFixed(4)}N, {Math.abs(m.centroid[0]).toFixed(4)}W
-              </p>
-            </>
-          )}
+        <div className="flex items-center justify-between">
+          <div>
+            <span
+              className={`text-lg font-bold ${SEVERITY_COLOR[severity]} ${SEVERITY_GLOW[severity]}`}
+            >
+              Zone {m.zone_id}
+            </span>
+            <p className="text-[11px] text-white/30 font-mono">
+              {m.area_acres} ac · {Math.round(m.ndvi_drop * 100)}% NDVI
+            </p>
+          </div>
+          <span
+            className={`text-[10px] px-2 py-0.5 rounded-md border ${SEVERITY_BG[severity]}`}
+          >
+            P{m.priority}
+          </span>
         </div>
 
         <div className="border-t border-white/[0.06]" />
 
-        {/* Interactive checklist */}
+        {/* Checklist — auto-animated */}
         <div className="space-y-1.5">
-          {m.checklist.map((item, i) => (
-            <label
-              key={i}
-              className={`flex items-start gap-2 text-[13px] cursor-pointer transition-colors ${
-                checked[i] ? "text-white/25 line-through" : "text-white/70"
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={checked[i] || false}
-                onChange={() => toggleCheck(i)}
-                className="mt-0.5 accent-emerald-500"
-              />
-              {item}
-            </label>
-          ))}
+          {m.checklist.map((item, i) => {
+            const isChecked = i < checkedCount;
+            return (
+              <div
+                key={i}
+                className={`flex items-center gap-2 text-[12px] py-1 transition-all duration-300 ${
+                  isChecked
+                    ? "text-white/30"
+                    : phase === "idle"
+                      ? "text-white/40"
+                      : "text-white/60"
+                }`}
+              >
+                <div
+                  className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-all duration-300 ${
+                    isChecked
+                      ? "bg-emerald-500/20 border-emerald-500/40"
+                      : "border-white/10"
+                  }`}
+                >
+                  {isChecked && (
+                    <svg
+                      className="w-2.5 h-2.5 text-emerald-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={3}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  )}
+                </div>
+                <span className={isChecked ? "line-through" : ""}>{item}</span>
+              </div>
+            );
+          })}
         </div>
 
-        {/* Photo upload */}
-        {!photoUploaded ? (
-          <button
-            onClick={() => setPhotoUploaded(true)}
-            className="w-full py-2 bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.08] text-white/50 text-[13px] rounded-lg transition-colors"
+        {/* Photo capture — fades in after checklist */}
+        {phase !== "idle" && phase !== "checking" && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
           >
-            Upload Photo
-          </button>
-        ) : (
-          <div className="space-y-1.5">
-            <div className="w-full h-20 bg-white/[0.03] border border-white/[0.06] rounded-lg flex items-center justify-center">
-              <div className="text-center">
-                <svg className="w-6 h-6 text-emerald-400 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.91M6.75 9a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" />
-                </svg>
-                <p className="text-[10px] text-white/30 mt-0.5">canopy_NW_01.jpg</p>
-              </div>
+            <div className="w-full h-14 bg-emerald-500/[0.05] border border-emerald-500/20 rounded-lg flex items-center justify-center gap-2">
+              <svg
+                className="w-4 h-4 text-emerald-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={1.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"
+                />
+              </svg>
+              <span className="text-[11px] text-emerald-400/70">
+                canopy_{m.zone_id.toLowerCase()}_01.jpg captured
+              </span>
             </div>
-            <p className="text-[9px] text-emerald-400/70 text-center">Photo captured</p>
+          </motion.div>
+        )}
+
+        {/* AI Finding — fades in after photo */}
+        {(phase === "finding" || phase === "complete") && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="bg-blue-500/[0.07] border border-blue-500/20 rounded-lg p-3"
+          >
+            <p className="text-[10px] text-blue-400/70 uppercase tracking-widest mb-1">
+              AI Analysis
+            </p>
+            <p className="text-[12px] text-blue-300/90 leading-relaxed">
+              {finding}
+            </p>
+          </motion.div>
+        )}
+
+        {/* Run Inspection button — idle state */}
+        {phase === "idle" && (
+          <button
+            onClick={() => {
+              setPhase("checking");
+              setCheckedCount(0);
+            }}
+            className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white text-[13px] font-medium rounded-lg transition-all shadow-[0_0_16px_rgba(59,130,246,0.2)]"
+          >
+            Run Inspection
+          </button>
+        )}
+
+        {/* In-progress spinner */}
+        {phase === "checking" && (
+          <div className="flex items-center justify-center gap-2 py-2 text-[11px] text-white/40">
+            <svg
+              className="animate-spin h-3 w-3"
+              viewBox="0 0 24 24"
+              fill="none"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
+            </svg>
+            Inspecting...
           </div>
         )}
 
-        {/* Next zone button */}
-        {isComplete && (
-          <button
-            onClick={onNextZone}
-            className="w-full py-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-[13px] font-medium rounded-lg transition-all shadow-[0_0_16px_rgba(16,185,129,0.2)]"
+        {/* Next Zone button — appears when complete */}
+        {phase === "complete" && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
           >
-            {isLastZone ? "Finish All Zones" : `Next Zone: ${missions[zoneIndex + 1].zone_id}`}
-          </button>
+            <button
+              onClick={onNextZone}
+              className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-[13px] font-medium rounded-lg transition-all shadow-[0_0_16px_rgba(16,185,129,0.2)]"
+            >
+              {isLastZone
+                ? "Complete All Zones"
+                : `Next → Zone ${missions[zoneIndex + 1].zone_id}`}
+            </button>
+          </motion.div>
         )}
       </div>
     </div>

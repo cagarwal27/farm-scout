@@ -7,8 +7,8 @@
     "date_end": "2024-07-14"
   },
   "summary": {
-    "clusters_found": 6,
-    "total_affected_acres": 12.8,
+    "clusters_found": 5,
+    "total_affected_acres": 11.4,
     "avg_ndvi_drop": -0.17,
     "max_ndvi_drop": -0.24
   },
@@ -113,26 +113,6 @@
           "ndvi_drop": -0.13,
           "severity": "medium",
           "centroid": [-121.8658, 38.7200]
-        }
-      },
-      {
-        "type": "Feature",
-        "geometry": {
-          "type": "Polygon",
-          "coordinates": [[
-            [-121.8730, 38.7140],
-            [-121.8720, 38.7140],
-            [-121.8720, 38.7133],
-            [-121.8730, 38.7133],
-            [-121.8730, 38.7140]
-          ]]
-        },
-        "properties": {
-          "cluster_id": "F",
-          "area_acres": 1.4,
-          "ndvi_drop": -0.11,
-          "severity": "low",
-          "centroid": [-121.8725, 38.7137]
         }
       }
     ]

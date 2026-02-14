@@ -52,7 +52,7 @@ export const MapView = forwardRef<MapHandle>(function MapView(_props, ref) {
       attributionControl: false,
     });
 
-    map.addControl(new maplibregl.NavigationControl(), "bottom-right");
+    map.addControl(new maplibregl.NavigationControl(), "bottom-left");
 
     // Field boundary — visible on load, grounds the viewer
     map.on("load", () => {
